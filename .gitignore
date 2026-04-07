@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Vite build output — Railway will regenerate this
+dist/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
