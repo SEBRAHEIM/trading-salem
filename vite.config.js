@@ -112,92 +112,94 @@ function sendEmail(subject, content) {
 // WRAPPED IN AN IF STATEMENT to prevent the Vercel build from hanging forever!
 if (!process.argv.includes('build')) {
 setInterval(async () => {
-  const pair     = 'XAU/USD';
+  const pairs    = ['XAU/USD', 'XTIUSD'];
   const interval = '15min';
-  try {
-    const candles = await fetchTradingViewCandles(pair, interval);
-    if (!candles || candles.length < 50) return;
 
-    const lastCandle  = candles[candles.length - 1];
-    const currentPrice = lastCandle.close;
+  for (const pair of pairs) {
+    try {
+      const candles = await fetchTradingViewCandles(pair, interval);
+      if (!candles || candles.length < 50) continue;
 
-    // ── 1. Monitor open trade first ────────────────────────────────────────
-    if (paperState.openTrade) {
-      const t = paperState.openTrade;
-      const isBuy = t.direction === 'BUY';
-      let closed = false;
-      let result = null;
+      const lastCandle   = candles[candles.length - 1];
+      const currentPrice = lastCandle.close;
 
-      // Check if SL hit
-      if (isBuy  && currentPrice <= t.sl) { result = 'SL'; closed = true; }
-      if (!isBuy && currentPrice >= t.sl) { result = 'SL'; closed = true; }
-      // Check if TP1 hit
-      if (isBuy  && currentPrice >= t.tp1) { result = 'TP'; closed = true; }
-      if (!isBuy && currentPrice <= t.tp1) { result = 'TP'; closed = true; }
+      // ── 1. Monitor open trade first ────────────────────────────────────────
+      if (paperState.openTrade && paperState.openTrade.pair === pair) {
+        const t = paperState.openTrade;
+        const isBuy = t.direction === 'BUY';
+        let closed = false;
+        let result = null;
 
-      if (closed) {
-        const dollarRisk = paperState.equity * (PAPER_RISK_PCT / 100);
-        const pnl = result === 'TP' ? +(dollarRisk * 1.5).toFixed(2) : +(-dollarRisk).toFixed(2);
-        paperState.equity = +(paperState.equity + pnl).toFixed(2);
+        // Check if SL hit
+        if (isBuy  && currentPrice <= t.sl) { result = 'SL'; closed = true; }
+        if (!isBuy && currentPrice >= t.sl) { result = 'SL'; closed = true; }
+        // Check if TP1 hit
+        if (isBuy  && currentPrice >= t.tp1) { result = 'TP'; closed = true; }
+        if (!isBuy && currentPrice <= t.tp1) { result = 'TP'; closed = true; }
 
-        const closed_trade = {
-          ...t,
-          closeTime:  new Date().toISOString(),
-          closePrice: currentPrice,
-          result,
-          pnl,
-          equity:     paperState.equity,
-        };
-        paperState.trades.push(closed_trade);
-        paperState.openTrade = null;
+        if (closed) {
+          const dollarRisk = paperState.equity * (PAPER_RISK_PCT / 100);
+          const pnl = result === 'TP' ? +(dollarRisk * 1.5).toFixed(2) : +(-dollarRisk).toFixed(2);
+          paperState.equity = +(paperState.equity + pnl).toFixed(2);
 
-        const won = result === 'TP';
-        const emoji = won ? '✅' : '❌';
-        console.log(`[BOT] Trade CLOSED — ${result} | PnL: $${pnl} | Equity: $${paperState.equity}`);
+          const closed_trade = {
+            ...t,
+            closeTime:  new Date().toISOString(),
+            closePrice: currentPrice,
+            result,
+            pnl,
+            equity:     paperState.equity,
+          };
+          paperState.trades.push(closed_trade);
+          paperState.openTrade = null;
 
-        // Email on trade close
-        sendEmail(
-          `${emoji} Trade Closed: ${result} | ${t.direction} ${pair} | PnL: $${pnl}`,
-          `Trade Closed!\n\nDirection: ${t.direction}\nAsset: ${pair}\nResult: ${result}\n\nEntry: ${t.entry}\nClose Price: ${currentPrice}\nStop Loss: ${t.sl}\nTake Profit 1: ${t.tp1}\n\nP&L: $${pnl}\nEquity: $${paperState.equity}\n\n${won ? 'Great trade! TP hit.' : 'Stop Loss hit. Moving on.'}`
-        );
+          const won = result === 'TP';
+          const emoji = won ? '✅' : '❌';
+          console.log(`[BOT] Trade CLOSED — ${result} | PnL: $${pnl} | Equity: $${paperState.equity}`);
+
+          // Email on trade close
+          sendEmail(
+            `${emoji} Trade Closed: ${result} | ${t.direction} ${pair} | PnL: $${pnl}`,
+            `Trade Closed!\\n\\nDirection: ${t.direction}\\nAsset: ${pair}\\nResult: ${result}\\n\\nEntry: ${t.entry}\\nClose Price: ${currentPrice}\\nStop Loss: ${t.sl}\\nTake Profit 1: ${t.tp1}\\n\\nP&L: $${pnl}\\nEquity: $${paperState.equity}\\n\\n${won ? 'Great trade! TP hit.' : 'Stop Loss hit. Moving on.'}`
+          );
+        }
       }
-    }
 
-    // ── 2. Look for new signal (only if no open trade) ─────────────────────
-    if (!paperState.openTrade) {
-      const results = runAllStrategies(candles);
-      const agg     = aggregateSignals(results);
+      // ── 2. Look for new signal (only if no open trade) ─────────────────────
+      if (!paperState.openTrade) {
+        const results = runAllStrategies(candles);
+        const agg     = aggregateSignals(results);
 
-      if (agg.thresholdMet && agg.finalSignal !== 'NO TRADE') {
-        const risk = computeRiskParams(candles, agg.finalSignal, agg.finalConfidence, interval);
+        if (agg.thresholdMet && agg.finalSignal !== 'NO TRADE') {
+          const risk = computeRiskParams(candles, agg.finalSignal, agg.finalConfidence, interval);
 
-        const trade = {
-          id:         Date.now(),
-          pair,
-          direction:  agg.finalSignal,
-          confidence: agg.finalConfidence,
-          openTime:   new Date().toISOString(),
-          entry:      risk.entry,
-          sl:         risk.stopLoss,
-          tp1:        risk.takeProfit1,
-          tp2:        risk.takeProfit2,
-          riskReward: risk.riskReward,
-        };
+          const trade = {
+            id:         Date.now(),
+            pair,
+            direction:  agg.finalSignal,
+            confidence: agg.finalConfidence,
+            openTime:   new Date().toISOString(),
+            entry:      risk.entry,
+            sl:         risk.stopLoss,
+            tp1:        risk.takeProfit1,
+            tp2:        risk.takeProfit2,
+            riskReward: risk.riskReward,
+          };
 
-        paperState.openTrade = trade;
-        console.log(`[BOT] NEW TRADE OPENED — ${agg.finalSignal} @ ${risk.entry} | SL: ${risk.stopLoss} | TP: ${risk.takeProfit1}`);
+          paperState.openTrade = trade;
+          console.log(`[BOT] NEW TRADE OPENED — ${agg.finalSignal} @ ${risk.entry} | SL: ${risk.stopLoss} | TP: ${risk.takeProfit1}`);
 
-        // Email on trade open
-        sendEmail(
-          `🚨 NEW SIGNAL: ${agg.finalSignal} ${pair} @ ${risk.entry}`,
-          `New Trade Entered!\n\nDirection: ${agg.finalSignal}\nAsset: ${pair}\nConfidence: ${agg.finalConfidence}%\n\n📈 TRADE LEVELS:\nEntry: ${risk.entry}\nStop Loss: ${risk.stopLoss}\nTake Profit 1 (1.5R): ${risk.takeProfit1}\nTake Profit 2: ${risk.takeProfit2}\nR/R: ${risk.riskReward}\n\nCurrent Equity: $${paperState.equity}`
-        );
+          // Email on trade open
+          sendEmail(
+            `🚨 NEW SIGNAL: ${agg.finalSignal} ${pair} @ ${risk.entry}`,
+            `New Trade Entered!\\n\\nDirection: ${agg.finalSignal}\\nAsset: ${pair}\\nConfidence: ${agg.finalConfidence}%\\n\\n📈 TRADE LEVELS:\\nEntry: ${risk.entry}\\nStop Loss: ${risk.stopLoss}\\nTake Profit 1 (1.5R): ${risk.takeProfit1}\\nTake Profit 2: ${risk.takeProfit2}\\nR/R: ${risk.riskReward}\\n\\nCurrent Equity: $${paperState.equity}`
+          );
+        }
       }
+    } catch (err) {
+      console.error(`[BOT] Tick error for ${pair}:`, err.message);
     }
-
-  } catch (err) {
-    console.error('[BOT] Tick error:', err.message);
-  }
+  } // end pairs loop
 }, 60 * 1000); // Every 60 seconds
 } // End if !build
 
