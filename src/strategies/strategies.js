@@ -554,10 +554,15 @@ export function aggregateSignals(results) {
   const countRatio = dirCount / totalSignals;
   const finalConfidence = Math.round((rawConfidence * 0.7 + countRatio * 100 * 0.3));
 
-  const THRESHOLD = 95;
+  const THRESHOLD = 75;
   let finalSignal;
+  let riskLevel = 'None';
   if (finalConfidence >= THRESHOLD) {
     finalSignal = topSignal.toUpperCase();
+    if (finalConfidence >= 90) riskLevel = 'No Risk';
+    else if (finalConfidence >= 85) riskLevel = 'Controllable Risk';
+    else if (finalConfidence >= 80) riskLevel = 'Medium Risk';
+    else riskLevel = 'High Risk';
   } else {
     finalSignal = 'NO TRADE';
   }
@@ -582,6 +587,7 @@ export function aggregateSignals(results) {
     marketStatus,
     threshold: THRESHOLD,
     thresholdMet: finalConfidence >= THRESHOLD,
+    riskLevel,
     breakdown: `${buyCount} buy / ${sellCount} sell / ${neutralCount} neutral out of ${totalSignals} strategies`,
   };
 }

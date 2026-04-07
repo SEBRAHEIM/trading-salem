@@ -124,13 +124,13 @@ document.getElementById('app').innerHTML = `
           </div>
           <div class="gauge-track">
             <div class="gauge-fill" id="gauge-fill" style="width:0%"></div>
-            <div class="gauge-threshold" style="left:95%">
+            <div class="gauge-threshold" style="left:75%">
               <div class="gauge-threshold-line"></div>
             </div>
           </div>
           <div class="gauge-legend">
             <span>0%</span>
-            <span class="gauge-threshold-label">95% Threshold</span>
+            <span class="gauge-threshold-label">75% Threshold</span>
             <span>100%</span>
           </div>
         </div>
@@ -502,7 +502,7 @@ function runAnalysis() {
       const mailStr = `Forex Signal Fired!\\n\\n` +
         `Action: ${agg.finalSignal}\\n` +
         `Asset: ${state.pair}\\n` +
-        `Confidence: ${agg.finalConfidence}%\\n\\n` +
+        `Confidence: ${agg.finalConfidence}% (${agg.riskLevel})\\n\\n` +
         `📈 RISK PARAMETERS:\\n` +
         `Entry: ${state.riskParams.entry}\\n` +
         `Stop Loss: ${state.riskParams.stopLoss}\\n` +
@@ -514,7 +514,7 @@ function runAnalysis() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           to: 'salimalnuaimi116@outlook.com',
-          subject: `ForexSignal Pro: ${agg.finalSignal} ${state.pair}`,
+          subject: `Signal: ${agg.finalSignal} ${state.pair} (${agg.riskLevel})`,
           content: mailStr
         })
       }).catch(e => console.warn("Automated email dispatch failed", e));
@@ -591,13 +591,13 @@ function renderSignal(agg) {
   valEl.textContent = sig;
   valEl.className = `signal-hero-value ${cls}`;
 
-  if (sig === 'BUY') subEl.textContent = `${agg.buyCount} of 20 strategies aligned — strong bullish consensus`;
-  else if (sig === 'SELL') subEl.textContent = `${agg.sellCount} of 20 strategies aligned — strong bearish consensus`;
-  else subEl.textContent = `Only ${Math.max(agg.buyCount, agg.sellCount)} of 20 aligned — 95% threshold not met`;
+  if (sig === 'BUY') subEl.textContent = `${agg.buyCount} of 20 strategies aligned — ${agg.riskLevel}`;
+  else if (sig === 'SELL') subEl.textContent = `${agg.sellCount} of 20 strategies aligned — ${agg.riskLevel}`;
+  else subEl.textContent = `Only ${Math.max(agg.buyCount, agg.sellCount)} of 20 aligned — 75% threshold not met`;
 
   // gauge
   const conf = agg.finalConfidence;
-  const gClass = conf >= 95 ? 'high' : conf >= 75 ? 'mid' : 'low';
+  const gClass = conf >= 85 ? 'high' : conf >= 75 ? 'mid' : 'low';
   fill.style.width = `${conf}%`;
   fill.className = `gauge-fill ${gClass}`;
   pctEl.textContent = `${conf}%`;
@@ -649,8 +649,8 @@ function renderReasoning(results, agg) {
     : results.filter(r => r.signal === 'neutral').slice(0, 3);
 
   const header = sig === 'NO TRADE'
-    ? `<div class="reasoning-alert amber">⚠️ ${agg.finalConfidence}% consensus — below 95% threshold. ${agg.buyCount} strategies bullish vs ${agg.sellCount} bearish. Waiting for stronger alignment.</div>`
-    : `<div class="reasoning-alert ${sig === 'BUY' ? 'green' : 'red'}">✅ ${sig} confirmed at ${agg.finalConfidence}% consensus. ${direction === 'buy' ? agg.buyCount : agg.sellCount}/20 strategies agree.</div>`;
+    ? `<div class="reasoning-alert amber">⚠️ ${agg.finalConfidence}% consensus — below 75% threshold. ${agg.buyCount} strategies bullish vs ${agg.sellCount} bearish. Waiting for stronger alignment.</div>`
+    : `<div class="reasoning-alert ${sig === 'BUY' ? 'green' : 'red'}">✅ ${sig} confirmed at ${agg.finalConfidence}% consensus (${agg.riskLevel}). ${direction === 'buy' ? agg.buyCount : agg.sellCount}/20 strategies agree.</div>`;
 
   const bullets = supporting.map(r =>
     `<div class="reasoning-item"><span class="reasoning-name">${r.name}</span><span class="reasoning-text">${r.reason}</span></div>`
@@ -790,7 +790,7 @@ function renderBacktest(r, pair, interval, balance = 1000) {
       </table>
     </div>
     <div style="background:var(--accent-amber-glow);border:1px solid var(--accent-amber);border-radius:var(--radius-md);padding:14px;font-size:11px;color:var(--text-secondary);line-height:1.7">
-      <strong style="color:var(--accent-amber)">⚠️ Disclaimer:</strong> Uses demo/synthetic data. Past performance does not guarantee future results. The 95% threshold reflects strategy <em>consensus</em>, not a guaranteed win rate. Never risk more than you can afford to lose.
+      <strong style="color:var(--accent-amber)">⚠️ Disclaimer:</strong> Uses demo/synthetic data. Past performance does not guarantee future results. The 75% threshold reflects strategy <em>consensus</em>, not a guaranteed win rate. Never risk more than you can afford to lose.
     </div>
   `;
 }
