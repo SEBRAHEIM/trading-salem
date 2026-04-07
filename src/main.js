@@ -498,26 +498,22 @@ function runAnalysis() {
     if (state.riskParams) {
       showLiveAlert(state.pair, agg.finalSignal, state.riskParams);
 
-      // Dispatch native automated email via proxy
-      const mailStr = `Forex Signal Fired!\\n\\n` +
-        `Action: ${agg.finalSignal}\\n` +
-        `Asset: ${state.pair}\\n` +
-        `Confidence: ${agg.finalConfidence}% (${agg.riskLevel})\\n\\n` +
-        `📈 RISK PARAMETERS:\\n` +
+      // Dispatch Telegram notification via serverless proxy
+      const tgText = `🚨 <b>ForexSignal Fired!</b>\\n\\n` +
+        `<b>Action:</b> ${agg.finalSignal}\\n` +
+        `<b>Asset:</b> ${state.pair}\\n` +
+        `<b>Confidence:</b> ${agg.finalConfidence}% (${agg.riskLevel})\\n\\n` +
+        `📈 <b>RISK PARAMETERS:</b>\\n` +
         `Entry: ${state.riskParams.entry}\\n` +
-        `Stop Loss: ${state.riskParams.stopLoss}\\n` +
-        `Take Profit 1 (1.5R): ${state.riskParams.takeProfit1}\\n` +
-        `Take Profit 2: ${state.riskParams.takeProfit2}\\n`;
+        `Stop Loss: 🔴 ${state.riskParams.stopLoss}\\n` +
+        `Take Profit 1: 🟢 ${state.riskParams.takeProfit1}\\n` +
+        `Take Profit 2: 🟢 ${state.riskParams.takeProfit2}\\n`;
 
-      fetch('http://localhost:5173/api/email', {
+      fetch('/api/telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: 'salimalnuaimi116@outlook.com',
-          subject: `Signal: ${agg.finalSignal} ${state.pair} (${agg.riskLevel})`,
-          content: mailStr
-        })
-      }).catch(e => console.warn("Automated email dispatch failed", e));
+        body: JSON.stringify({ text: tgText })
+      }).catch(e => console.warn("Telegram dispatch failed", e));
     }
   }
 

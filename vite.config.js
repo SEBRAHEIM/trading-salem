@@ -89,23 +89,26 @@ const paperState = {
   openTrade: null,  // currently open virtual trade (one at a time)
 };
 
-function sendEmail(subject, content) {
-  const to = 'salimalnuaimi116@outlook.com';
-  const cleanSubj = subject.replace(/"/g, '\\"');
-  const cleanBody = content.replace(/"/g, '\\"').replace(/\n/g, '\\n');
-  const script = `
-    tell application "Mail"
-      set theMessage to make new outgoing message with properties {subject:"${cleanSubj}", content:"${cleanBody}", visible:false}
-      tell theMessage
-        make new to recipient at end of to recipients with properties {address:"${to}"}
-        send
-      end tell
-    end tell
-  `;
-  require('child_process').exec(`osascript -e '${script.replace(/'/g, "'\\''")}'`, (err) => {
-    if (err) console.error('[BOT] Email failed:', err.message);
-    else console.log(`[BOT] Email sent: ${subject}`);
-  });
+function sendTelegram(htmlContent) {
+  const TELEGRAM_BOT_TOKEN = '8643381958:AAGUT_9Q_lSj_29Y2lfPRJNzG9TzlmhqReM';
+  const TELEGRAM_CHAT_ID = '6732836566';
+  const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+  
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: TELEGRAM_CHAT_ID,
+      text: htmlContent,
+      parse_mode: 'HTML'
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if(!data.ok) console.error('[BOT] Telegram failed:', data);
+    else console.log('[BOT] Telegram sent successfully!');
+  })
+  .catch(err => console.error('[BOT] Telegram fetch error:', err.message));
 }
 
 // Main bot tick — runs every 60 seconds
@@ -157,10 +160,9 @@ setInterval(async () => {
           const emoji = won ? '✅' : '❌';
           console.log(`[BOT] Trade CLOSED — ${result} | PnL: $${pnl} | Equity: $${paperState.equity}`);
 
-          // Email on trade close
-          sendEmail(
-            `${emoji} Trade Closed: ${result} | ${t.direction} ${pair} | PnL: $${pnl}`,
-            `Trade Closed!\\n\\nDirection: ${t.direction}\\nAsset: ${pair}\\nResult: ${result}\\n\\nEntry: ${t.entry}\\nClose Price: ${currentPrice}\\nStop Loss: ${t.sl}\\nTake Profit 1: ${t.tp1}\\n\\nP&L: $${pnl}\\nEquity: $${paperState.equity}\\n\\n${won ? 'Great trade! TP hit.' : 'Stop Loss hit. Moving on.'}`
+          // Telegram on trade close
+          sendTelegram(
+            `🚨 <b>Trade Closed!</b> \\n\\n<b>Asset:</b> ${pair}\\n<b>Result:</b> ${result}\\n\\n<b>Entry:</b> ${t.entry}\\n<b>Close Price:</b> ${currentPrice}\\n\\n<b>P&L:</b> $${pnl}\\n<b>Equity:</b> $${paperState.equity}\\n\\n${won ? '✅ Great trade! TP hit.' : '❌ Stop Loss hit. Moving on.'}`
           );
         }
       }
@@ -189,10 +191,9 @@ setInterval(async () => {
           paperState.openTrade = trade;
           console.log(`[BOT] NEW TRADE OPENED — ${agg.finalSignal} @ ${risk.entry} | SL: ${risk.stopLoss} | TP: ${risk.takeProfit1}`);
 
-          // Email on trade open
-          sendEmail(
-            `🚨 NEW SIGNAL: ${agg.finalSignal} ${pair} @ ${risk.entry}`,
-            `New Trade Entered!\\n\\nDirection: ${agg.finalSignal}\\nAsset: ${pair}\\nConfidence: ${agg.finalConfidence}%\\n\\n📈 TRADE LEVELS:\\nEntry: ${risk.entry}\\nStop Loss: ${risk.stopLoss}\\nTake Profit 1 (1.5R): ${risk.takeProfit1}\\nTake Profit 2: ${risk.takeProfit2}\\nR/R: ${risk.riskReward}\\n\\nCurrent Equity: $${paperState.equity}`
+          // Telegram on trade open
+          sendTelegram(
+            `🚨 <b>NEW TRADE ENTERED!</b>\\n\\n<b>Direction:</b> ${agg.finalSignal}\\n<b>Asset:</b> ${pair}\\n<b>Confidence:</b> ${agg.finalConfidence}%\\n\\n📈 <b>TRADE LEVELS:</b>\\n<b>Entry:</b> ${risk.entry}\\n<b>Stop Loss:</b> 🔴 ${risk.stopLoss}\\n<b>Take Profit 1:</b> 🟢 ${risk.takeProfit1}\\n<b>Take Profit 2:</b> 🟢 ${risk.takeProfit2}\\n<b>R/R:</b> ${risk.riskReward}\\n\\n<b>Current Equity:</b> $${paperState.equity}`
           );
         }
       }
