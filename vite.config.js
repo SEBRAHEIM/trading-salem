@@ -109,6 +109,8 @@ function sendEmail(subject, content) {
 }
 
 // Main bot tick — runs every 60 seconds
+// WRAPPED IN AN IF STATEMENT to prevent the Vercel build from hanging forever!
+if (!process.argv.includes('build')) {
 setInterval(async () => {
   const pair     = 'XAU/USD';
   const interval = '15min';
@@ -197,6 +199,7 @@ setInterval(async () => {
     console.error('[BOT] Tick error:', err.message);
   }
 }, 60 * 1000); // Every 60 seconds
+} // End if !build
 
 
 export default defineConfig({
