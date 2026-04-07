@@ -2,7 +2,7 @@ import TradingView from '@mathieuc/tradingview';
 
 const TV_SYMBOLS = {
   'XAU/USD': 'OANDA:XAUUSD',
-  'USOIL':   'TVC:USOIL',
+  'XTIUSD': 'XTIUSD',
 };
 
 const TV_INTERVALS = {

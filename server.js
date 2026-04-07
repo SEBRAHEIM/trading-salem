@@ -21,7 +21,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'dist')));
 
 // ─── Shared helper ────────────────────────────────────────────────────────────
-const TV_SYMBOLS  = { 'XAU/USD': 'OANDA:XAUUSD', 'USOIL': 'TVC:USOIL' };
+const TV_SYMBOLS  = { 'XAU/USD': 'OANDA:XAUUSD', 'XTIUSD': 'XTIUSD' };
 const TV_INTERVALS = { '1min':'1','5min':'5','15min':'15','30min':'30','1h':'60','4h':'240','1day':'D' };
 
 function fetchTVCandles(pair, interval) {

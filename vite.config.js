@@ -6,7 +6,7 @@ import { computeRiskParams } from './src/data/backtest.js';
 // ─── TradingView Native Data Engine ───────────────────────────────────────────
 const TV_SYMBOLS = {
   'XAU/USD': 'OANDA:XAUUSD',
-  'USOIL':   'TVC:USOIL',
+  'XTIUSD': 'XTIUSD',
 };
 
 const TV_INTERVALS = {
