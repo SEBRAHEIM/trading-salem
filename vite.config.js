@@ -162,7 +162,11 @@ setInterval(async () => {
 
           // Telegram on trade close
           sendTelegram(
-            `🚨 <b>Trade Closed!</b> \\n\\n<b>Asset:</b> ${pair}\\n<b>Result:</b> ${result}\\n\\n<b>Entry:</b> ${t.entry}\\n<b>Close Price:</b> ${currentPrice}\\n\\n<b>P&L:</b> $${pnl}\\n<b>Equity:</b> $${paperState.equity}\\n\\n${won ? '✅ Great trade! TP hit.' : '❌ Stop Loss hit. Moving on.'}`
+            `🚨 <b>Trade Closed!</b>\n\n` + 
+            `<b>Asset:</b> ${pair}\n<b>Result:</b> ${result}\n\n` +
+            `<b>Entry:</b> ${t.entry}\n<b>Close Price:</b> ${currentPrice}\n\n` +
+            `<b>P&L:</b> $${pnl}\n<b>Equity:</b> $${paperState.equity}\n\n` +
+            `${won ? '✅ Great trade! TP hit.' : '❌ Stop Loss hit. Moving on.'}`
           );
         }
       }
@@ -193,7 +197,12 @@ setInterval(async () => {
 
           // Telegram on trade open
           sendTelegram(
-            `🚨 <b>NEW TRADE ENTERED!</b>\\n\\n<b>Direction:</b> ${agg.finalSignal}\\n<b>Asset:</b> ${pair}\\n<b>Confidence:</b> ${agg.finalConfidence}%\\n\\n📈 <b>TRADE LEVELS:</b>\\n<b>Entry:</b> ${risk.entry}\\n<b>Stop Loss:</b> 🔴 ${risk.stopLoss}\\n<b>Take Profit 1:</b> 🟢 ${risk.takeProfit1}\\n<b>Take Profit 2:</b> 🟢 ${risk.takeProfit2}\\n<b>R/R:</b> ${risk.riskReward}\\n\\n<b>Current Equity:</b> $${paperState.equity}`
+            `🚨 <b>${agg.finalSignal} ${pair}</b>\n` +
+            `⚠️ <b>Trade Opened</b>\n\n` +
+            `Entry price: ${risk.entry}\n` +
+            `TP1: ${risk.takeProfit1}\n` +
+            `TP2: ${risk.takeProfit2}\n` +
+            `SL: ${risk.stopLoss}`
           );
         }
       }

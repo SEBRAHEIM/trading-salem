@@ -499,15 +499,12 @@ function runAnalysis() {
       showLiveAlert(state.pair, agg.finalSignal, state.riskParams);
 
       // Dispatch Telegram notification via serverless proxy
-      const tgText = `🚨 <b>ForexSignal Fired!</b>\\n\\n` +
-        `<b>Action:</b> ${agg.finalSignal}\\n` +
-        `<b>Asset:</b> ${state.pair}\\n` +
-        `<b>Confidence:</b> ${agg.finalConfidence}% (${agg.riskLevel})\\n\\n` +
-        `📈 <b>RISK PARAMETERS:</b>\\n` +
-        `Entry: ${state.riskParams.entry}\\n` +
-        `Stop Loss: 🔴 ${state.riskParams.stopLoss}\\n` +
-        `Take Profit 1: 🟢 ${state.riskParams.takeProfit1}\\n` +
-        `Take Profit 2: 🟢 ${state.riskParams.takeProfit2}\\n`;
+      const tgText = `🚨 <b>${agg.finalSignal} ${state.pair}</b>\n` +
+        `⚠️ <b>${agg.riskLevel}</b>\n\n` +
+        `Entry price: ${state.riskParams.entry}\n` +
+        `TP1: ${state.riskParams.takeProfit1}\n` +
+        `TP2: ${state.riskParams.takeProfit2}\n` +
+        `SL: ${state.riskParams.stopLoss}`;
 
       fetch('/api/telegram', {
         method: 'POST',
