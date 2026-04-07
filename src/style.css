@@ -405,3 +405,16 @@ select option { background: var(--bg-card); }
 .la-item span { font-size: 10px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.5px; }
 .la-item strong { font-size: 16px; font-family: var(--mono); color: var(--text-primary); }
 @keyframes alertFadeIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── Mobile Layout ──────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  #panel-dashboard { flex-direction: column; overflow-y: auto; overflow-x: hidden; }
+  .col-chart { flex: none; height: 50vh; min-height: 350px; border-right: none; }
+  .col-signal { width: 100%; border-top: 1px solid var(--bg-border); overflow: visible; }
+  .header { padding: 0 10px; flex-wrap: wrap; height: auto; padding-top: 10px; padding-bottom: 10px; }
+  .header-mid { margin: 10px 0; width: 100%; justify-content: space-between; }
+  .api-key-wrap { display: none; } /* Hide API key on mobile to save space */
+  .bt-stats-grid { grid-template-columns: 1fr; }
+  .backtest-layout { flex-direction: column; overflow-y: auto; }
+  .backtest-sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--bg-border); }
+}
