@@ -492,6 +492,72 @@ export const STRATEGIES = [
     },
   },
 
+  // ─── 21. Smart Money / Whale Tracker (Weight: 10) ────────────────────────
+  {
+    id: 'whale_tracker',
+    name: 'Institutional Whale Tracker',
+    category: 'Volume',
+    weight: 10,
+    description: 'Mimics Unusual Whales logic by tracking extreme volume anomalies, liquidity sweeps, and Smart Money accumulation/distribution footprints.',
+    analyze(candles) {
+      if (candles.length < 30) return { signal: 'neutral', confidence: 0, reason: 'Insufficient data' };
+      
+      const closes = candles.map(c => c.close);
+      const volumes = candles.map(c => c.volume || 1);
+      
+      const lastC = candles[candles.length - 1];
+      
+      // Calculate average volume over last 20 periods
+      const avgVol = volumes.slice(-21, -1).reduce((a, b) => a + b, 0) / 20;
+      const volAnomaly = lastC.volume > avgVol * 2.5; // 2.5x normal volume
+      
+      // VSA (Volume Spread Analysis) - Massive volume, small body = Accumulation/Distribution
+      const bodySize = Math.abs(lastC.close - lastC.open);
+      const totalRange = lastC.high - lastC.low;
+      const avgRange = candles.slice(-21, -1).reduce((a, b) => a + (b.high - b.low), 0) / 20;
+      
+      const smallBody = bodySize < (totalRange * 0.35);
+      const liquidityWickUp = (lastC.high - Math.max(lastC.open, lastC.close)) > (totalRange * 0.45);
+      const liquidityWickDown = (Math.min(lastC.open, lastC.close) - lastC.low) > (totalRange * 0.45);
+
+      // Expansion / Order Block
+      const massiveBody = bodySize > avgRange * 1.5;
+      const bullishExpansion = massiveBody && lastC.close > lastC.open && volAnomaly;
+      const bearishExpansion = massiveBody && lastC.close < lastC.open && volAnomaly;
+
+      if (volAnomaly) {
+        if (liquidityWickDown && smallBody) {
+          // Smart money absorbed selling (Accumulation / Liquidity Grab)
+          return { signal: 'buy', confidence: 95, reason: `WHALE DETECTED: Massive volume accumulation (x${(lastC.volume/avgVol).toFixed(1)}). Smart Money swept liquidity at lows and absorbed retail selling.` };
+        }
+        if (liquidityWickUp && smallBody) {
+          // Smart money absorbed buying (Distribution / Liquidity Grab)
+          return { signal: 'sell', confidence: 95, reason: `WHALE DETECTED: Massive volume distribution (x${(lastC.volume/avgVol).toFixed(1)}). Smart Money swept liquidity at highs and absorbed retail buying.` };
+        }
+        if (bullishExpansion) {
+          return { signal: 'buy', confidence: 92, reason: `WHALE DETECTED: Institutional buying frenzy. Heavy volume expansion breaking upward.` };
+        }
+        if (bearishExpansion) {
+           return { signal: 'sell', confidence: 92, reason: `WHALE DETECTED: Institutional selling frenzy. Heavy volume expansion breaking downward.` };
+        }
+      }
+      
+      // If we see declining volume on an uptrend/downtrend (weak retail)
+      const uptrend = closes[closes.length-1] > closes[closes.length-5];
+      const downtrend = closes[closes.length-1] < closes[closes.length-5];
+      const fadingVol = volumes[volumes.length-1] < avgVol * 0.4 && volumes[volumes.length-2] < avgVol * 0.4;
+      
+      if (uptrend && fadingVol) {
+         return { signal: 'sell', confidence: 65, reason: `Retail Trap — uptrend stalling on vanishing volume. No institutional backing.` };
+      }
+      if (downtrend && fadingVol) {
+         return { signal: 'buy', confidence: 65, reason: `Retail Trap — downtrend stalling on vanishing volume. No institutional backing.` };
+      }
+      
+      return { signal: 'neutral', confidence: 50, reason: `No Whale activity detected. Normal volume profile.` };
+    },
+  },
+
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
