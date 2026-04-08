@@ -130,44 +130,69 @@ setInterval(async () => {
       if (paperState.openTrade && paperState.openTrade.pair === pair) {
         const t = paperState.openTrade;
         const isBuy = t.direction === 'BUY';
-        let closed = false;
-        let result = null;
+        const dollarRisk = paperState.equity * (PAPER_RISK_PCT / 100);
+        let closeTradeResult = null;
 
-        // Check if SL hit
-        if (isBuy  && currentPrice <= t.sl) { result = 'SL'; closed = true; }
-        if (!isBuy && currentPrice >= t.sl) { result = 'SL'; closed = true; }
-        // Check if TP1 hit
-        if (isBuy  && currentPrice >= t.tp1) { result = 'TP'; closed = true; }
-        if (!isBuy && currentPrice <= t.tp1) { result = 'TP'; closed = true; }
+        if (isBuy) {
+          if (currentPrice >= t.tp1 && !t.hitTp1) {
+            t.hitTp1 = true;
+            sendTelegram(`🟢 <b>TP1 DESTROYED!</b>\n\n<b>Asset:</b> ${pair}\n<b>Price:</b> ${currentPrice}\n<b>Target 1:</b> ${t.tp1}`);
+          }
+          if (currentPrice >= t.tp2 && !t.hitTp2 && t.hitTp1) {
+            t.hitTp2 = true;
+            sendTelegram(`🚀 <b>TP2 CRUSHED!</b>\n\n<b>Asset:</b> ${pair}\n<b>Price:</b> ${currentPrice}\n<b>Target 2:</b> ${t.tp2}`);
+            closeTradeResult = 'TP2';
+          }
+          if (currentPrice <= t.sl) {
+            if (t.hitTp1) {
+               sendTelegram(`⚠️ <b>Stopped out after hitting TP1!</b>\nIt doesn't matter, we already took our profit.\n\n<b>Asset:</b> ${pair}`);
+               closeTradeResult = 'TP1_Secured';
+            } else {
+               sendTelegram(`❌ <b>SL HIT!</b>\nWe will be back stronger.\n\n<b>Asset:</b> ${pair}\n<b>Entry:</b> ${t.entry}\n<b>SL:</b> ${t.sl}`);
+               closeTradeResult = 'SL';
+            }
+          }
+        } else { // SELL
+          if (currentPrice <= t.tp1 && !t.hitTp1) {
+            t.hitTp1 = true;
+            sendTelegram(`🟢 <b>TP1 DESTROYED!</b>\n\n<b>Asset:</b> ${pair}\n<b>Price:</b> ${currentPrice}\n<b>Target 1:</b> ${t.tp1}`);
+          }
+          if (currentPrice <= t.tp2 && !t.hitTp2 && t.hitTp1) {
+            t.hitTp2 = true;
+            sendTelegram(`🚀 <b>TP2 CRUSHED!</b>\n\n<b>Asset:</b> ${pair}\n<b>Price:</b> ${currentPrice}\n<b>Target 2:</b> ${t.tp2}`);
+            closeTradeResult = 'TP2';
+          }
+          if (currentPrice >= t.sl) {
+            if (t.hitTp1) {
+               sendTelegram(`⚠️ <b>Stopped out after hitting TP1!</b>\nIt doesn't matter, we already took our profit.\n\n<b>Asset:</b> ${pair}`);
+               closeTradeResult = 'TP1_Secured';
+            } else {
+               sendTelegram(`❌ <b>SL HIT!</b>\nWe will be back stronger.\n\n<b>Asset:</b> ${pair}\n<b>Entry:</b> ${t.entry}\n<b>SL:</b> ${t.sl}`);
+               closeTradeResult = 'SL';
+            }
+          }
+        }
 
-        if (closed) {
-          const dollarRisk = paperState.equity * (PAPER_RISK_PCT / 100);
-          const pnl = result === 'TP' ? +(dollarRisk * 1.5).toFixed(2) : +(-dollarRisk).toFixed(2);
+        if (closeTradeResult) {
+          let pnl = 0;
+          if (closeTradeResult === 'SL') pnl = -dollarRisk;
+          else if (closeTradeResult === 'TP1_Secured') pnl = +(dollarRisk * 1.5).toFixed(2);
+          else if (closeTradeResult === 'TP2') pnl = +(dollarRisk * 2.5).toFixed(2);
+
           paperState.equity = +(paperState.equity + pnl).toFixed(2);
 
           const closed_trade = {
             ...t,
             closeTime:  new Date().toISOString(),
             closePrice: currentPrice,
-            result,
+            result: closeTradeResult,
             pnl,
             equity:     paperState.equity,
           };
           paperState.trades.push(closed_trade);
           paperState.openTrade = null;
 
-          const won = result === 'TP';
-          const emoji = won ? '✅' : '❌';
-          console.log(`[BOT] Trade CLOSED — ${result} | PnL: $${pnl} | Equity: $${paperState.equity}`);
-
-          // Telegram on trade close
-          sendTelegram(
-            `🚨 <b>Trade Closed!</b>\n\n` + 
-            `<b>Asset:</b> ${pair}\n<b>Result:</b> ${result}\n\n` +
-            `<b>Entry:</b> ${t.entry}\n<b>Close Price:</b> ${currentPrice}\n\n` +
-            `<b>P&L:</b> $${pnl}\n<b>Equity:</b> $${paperState.equity}\n\n` +
-            `${won ? '✅ Great trade! TP hit.' : '❌ Stop Loss hit. Moving on.'}`
-          );
+          console.log(`[BOT] Trade CLOSED — ${closeTradeResult} | PnL: $${pnl} | Equity: $${paperState.equity}`);
         }
       }
 

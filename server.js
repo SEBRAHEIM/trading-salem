@@ -91,24 +91,61 @@ setInterval(async () => {
 
     // Monitor open trade
     if (paperState.openTrade) {
-      const t    = paperState.openTrade;
+      const t = paperState.openTrade;
       const isBuy = t.direction === 'BUY';
-      let result = null;
-      if (isBuy  && lastClose <= t.sl)  result = 'SL';
-      if (isBuy  && lastClose >= t.tp1) result = 'TP';
-      if (!isBuy && lastClose >= t.sl)  result = 'SL';
-      if (!isBuy && lastClose <= t.tp1) result = 'TP';
+      const dollarRisk = paperState.equity * (PAPER_RISK_PCT / 100);
+      let closeTradeResult = null;
 
-      if (result) {
-        const dollarRisk = paperState.equity * (PAPER_RISK_PCT / 100);
-        const pnl        = result === 'TP' ? +(dollarRisk * 1.5).toFixed(2) : +(-dollarRisk).toFixed(2);
+      if (isBuy) {
+        if (lastClose >= t.tp1 && !t.hitTp1) {
+          t.hitTp1 = true;
+          sendTelegram(`🟢 <b>TP1 DESTROYED!</b>\n\n<b>Asset:</b> XAU/USD\n<b>Price:</b> ${lastClose}\n<b>Target 1:</b> ${t.tp1}`);
+        }
+        if (lastClose >= t.tp2 && !t.hitTp2 && t.hitTp1) {
+          t.hitTp2 = true;
+          sendTelegram(`🚀 <b>TP2 CRUSHED!</b>\n\n<b>Asset:</b> XAU/USD\n<b>Price:</b> ${lastClose}\n<b>Target 2:</b> ${t.tp2}`);
+          closeTradeResult = 'TP2';
+        }
+        if (lastClose <= t.sl) {
+          if (t.hitTp1) {
+             sendTelegram(`⚠️ <b>Stopped out after hitting TP1!</b>\nIt doesn't matter, we already took our profit.\n\n<b>Asset:</b> XAU/USD`);
+             closeTradeResult = 'TP1_Secured';
+          } else {
+             sendTelegram(`❌ <b>SL HIT!</b>\nWe will be back stronger.\n\n<b>Asset:</b> XAU/USD\n<b>Entry:</b> ${t.entry}\n<b>SL:</b> ${t.sl}`);
+             closeTradeResult = 'SL';
+          }
+        }
+      } else { // SELL
+        if (lastClose <= t.tp1 && !t.hitTp1) {
+          t.hitTp1 = true;
+          sendTelegram(`🟢 <b>TP1 DESTROYED!</b>\n\n<b>Asset:</b> XAU/USD\n<b>Price:</b> ${lastClose}\n<b>Target 1:</b> ${t.tp1}`);
+        }
+        if (lastClose <= t.tp2 && !t.hitTp2 && t.hitTp1) {
+          t.hitTp2 = true;
+          sendTelegram(`🚀 <b>TP2 CRUSHED!</b>\n\n<b>Asset:</b> XAU/USD\n<b>Price:</b> ${lastClose}\n<b>Target 2:</b> ${t.tp2}`);
+          closeTradeResult = 'TP2';
+        }
+        if (lastClose >= t.sl) {
+          if (t.hitTp1) {
+             sendTelegram(`⚠️ <b>Stopped out after hitting TP1!</b>\nIt doesn't matter, we already took our profit.\n\n<b>Asset:</b> XAU/USD`);
+             closeTradeResult = 'TP1_Secured';
+          } else {
+             sendTelegram(`❌ <b>SL HIT!</b>\nWe will be back stronger.\n\n<b>Asset:</b> XAU/USD\n<b>Entry:</b> ${t.entry}\n<b>SL:</b> ${t.sl}`);
+             closeTradeResult = 'SL';
+          }
+        }
+      }
+
+      if (closeTradeResult) {
+        let pnl = 0;
+        if (closeTradeResult === 'SL') pnl = -dollarRisk;
+        else if (closeTradeResult === 'TP1_Secured') pnl = +(dollarRisk * 1.5).toFixed(2);
+        else if (closeTradeResult === 'TP2') pnl = +(dollarRisk * 2.5).toFixed(2);
+
         paperState.equity = +(paperState.equity + pnl).toFixed(2);
-        paperState.trades.push({ ...t, closeTime: new Date().toISOString(), closePrice: lastClose, result, pnl, equity: paperState.equity });
+        paperState.trades.push({ ...t, closeTime: new Date().toISOString(), closePrice: lastClose, result: closeTradeResult, pnl, equity: paperState.equity });
         paperState.openTrade = null;
-        console.log(`[BOT] ${result} | PnL $${pnl} | Equity $${paperState.equity}`);
-        sendTelegram(
-          `🚨 <b>Trade Closed!</b>\n\n<b>Asset:</b> XAU/USD\n<b>Result:</b> ${result}\n\n<b>Entry:</b> ${t.entry}\n<b>Close Price:</b> ${lastClose}\n\n<b>P&L:</b> $${pnl}\n<b>Equity:</b> $${paperState.equity}`
-        );
+        console.log(`[BOT] Trade Closed: ${closeTradeResult} | PnL $${pnl} | Equity $${paperState.equity}`);
       }
     }
 
