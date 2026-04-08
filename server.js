@@ -66,15 +66,20 @@ const PAPER_START    = 150;
 const PAPER_RISK_PCT = 1.0;
 const paperState     = { equity: PAPER_START, trades: [], openTrade: null };
 
-function sendEmail(subject, content) {
-  // On Mac: native Mail.app. On Linux servers: use mailx if available.
-  const to = 'salimalnuaimi116@outlook.com';
-  try {
-    // Try mailx (works on Railway Linux containers with sendmail configured)
-    exec(`echo "${content.replace(/"/g, "'")}" | mail -s "${subject}" ${to}`,
-      err => { if (err) console.error('[EMAIL] Failed:', err.message); else console.log('[EMAIL] Sent:', subject); }
-    );
-  } catch {}
+function sendTelegram(htmlContent) {
+  const TELEGRAM_BOT_TOKEN = '8643381958:AAGUT_9Q_lSj_29Y2lfPRJNzG9TzlmhqReM';
+  const TELEGRAM_CHAT_ID = '6732836566';
+  const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+  
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: TELEGRAM_CHAT_ID,
+      text: htmlContent,
+      parse_mode: 'HTML'
+    })
+  }).catch(err => console.error('[BOT] Telegram fetch error:', err.message));
 }
 
 // Bot tick every 60s
@@ -101,8 +106,9 @@ setInterval(async () => {
         paperState.trades.push({ ...t, closeTime: new Date().toISOString(), closePrice: lastClose, result, pnl, equity: paperState.equity });
         paperState.openTrade = null;
         console.log(`[BOT] ${result} | PnL $${pnl} | Equity $${paperState.equity}`);
-        sendEmail(`${result === 'TP' ? '✅' : '❌'} Trade ${result} | ${t.direction} XAU/USD | $${pnl}`,
-          `Trade closed.\nResult: ${result}\nEntry: ${t.entry}\nClose: ${lastClose}\nSL: ${t.sl}\nTP1: ${t.tp1}\nP&L: $${pnl}\nEquity: $${paperState.equity}`);
+        sendTelegram(
+          `🚨 <b>Trade Closed!</b>\n\n<b>Asset:</b> XAU/USD\n<b>Result:</b> ${result}\n\n<b>Entry:</b> ${t.entry}\n<b>Close Price:</b> ${lastClose}\n\n<b>P&L:</b> $${pnl}\n<b>Equity:</b> $${paperState.equity}`
+        );
       }
     }
 
@@ -118,8 +124,9 @@ setInterval(async () => {
           tp2: risk.takeProfit2, riskReward: risk.riskReward,
         };
         console.log(`[BOT] TRADE OPENED ${agg.finalSignal} @ ${risk.entry}`);
-        sendEmail(`🚨 NEW SIGNAL: ${agg.finalSignal} XAU/USD @ ${risk.entry}`,
-          `New trade entered!\nDirection: ${agg.finalSignal}\nEntry: ${risk.entry}\nSL: ${risk.stopLoss}\nTP1: ${risk.takeProfit1}\nTP2: ${risk.takeProfit2}\nEquity: $${paperState.equity}`);
+        sendTelegram(
+          `🚨 <b>${agg.finalSignal} XAU/USD</b>\n⚠️ <b>Trade Opened</b>\n\nEntry price: ${risk.entry}\nTP1: ${risk.takeProfit1}\nTP2: ${risk.takeProfit2}\nSL: ${risk.stopLoss}`
+        );
       }
     }
   } catch (err) { console.error('[BOT] Tick error:', err.message); }
