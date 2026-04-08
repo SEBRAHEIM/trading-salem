@@ -162,7 +162,7 @@ setInterval(async () => {
         };
         console.log(`[BOT] TRADE OPENED ${agg.finalSignal} @ ${risk.entry}`);
         sendTelegram(
-          `🚨 <b>${agg.finalSignal} XAU/USD</b>\n⚠️ <b>Trade Opened</b>\n\nEntry price: ${risk.entry}\nTP1: ${risk.takeProfit1}\nTP2: ${risk.takeProfit2}\nSL: ${risk.stopLoss}`
+          `🚨 <b>${agg.finalSignal} XAU/USD</b>\n⚠️ <b>${agg.riskLevel}</b>\n\nEntry price: ${risk.entry}\nTP1: ${risk.takeProfit1}\nTP2: ${risk.takeProfit2}\nSL: ${risk.stopLoss}`
         );
       }
     }

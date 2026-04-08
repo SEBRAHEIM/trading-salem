@@ -223,7 +223,7 @@ setInterval(async () => {
           // Telegram on trade open
           sendTelegram(
             `🚨 <b>${agg.finalSignal} ${pair}</b>\n` +
-            `⚠️ <b>Trade Opened</b>\n\n` +
+            `⚠️ <b>${agg.riskLevel}</b>\n\n` +
             `Entry price: ${risk.entry}\n` +
             `TP1: ${risk.takeProfit1}\n` +
             `TP2: ${risk.takeProfit2}\n` +
