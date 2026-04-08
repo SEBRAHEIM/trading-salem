@@ -7,7 +7,7 @@
 import './style.css';
 import { initChart, updateChart, updateChartData, addSignalMarker } from './components/chart.js';
 import { fetchCandles, fetchLivePrice, addSyntheticTick, PAIRS, INTERVALS } from './data/marketData.js';
-import { runAllStrategies, aggregateSignals } from './strategies/strategies.js';
+import { runAllStrategies, aggregateSignals, strategyContext } from './strategies/strategies.js';
 import { runBacktest, computeRiskParams } from './data/backtest.js';
 import { logSignal, getLogs, clearLogs, exportLogs } from './data/signalLogger.js';
 
@@ -41,7 +41,7 @@ document.getElementById('app').innerHTML = `
       <div class="logo-icon">⚡</div>
       <div>
         <div class="logo-text">ForexSignal Pro</div>
-        <div class="logo-sub">21-Strategy Consensus Engine</div>
+        <div class="logo-sub">22-Strategy Consensus Engine</div>
       </div>
     </div>
 
@@ -201,7 +201,7 @@ document.getElementById('app').innerHTML = `
 
         <!-- Strategy breakdown toggle -->
         <button class="strategies-toggle" id="strategies-toggle">
-          <span>View 21 strategies ›</span>
+          <span>View 22 strategies ›</span>
           <span class="strat-counts" id="strat-counts"></span>
         </button>
 
@@ -389,7 +389,7 @@ document.getElementById('strategies-toggle').addEventListener('click', () => {
   const panel = document.getElementById('strategies-panel');
   const toggle = document.getElementById('strategies-toggle');
   panel.style.display = state.showStrategies ? 'flex' : 'none';
-  toggle.querySelector('span').textContent = state.showStrategies ? 'Hide strategies ×' : 'View 21 strategies ›';
+  toggle.querySelector('span').textContent = state.showStrategies ? 'Hide strategies ×' : 'View 22 strategies ›';
   if (state.showStrategies) renderStrategyList();
 });
 
@@ -419,6 +419,12 @@ async function loadAndAnalyze() {
   clearLiveIntervals();
 
   try {
+    // Fetch breaking news asynchronously into the singleton
+    fetch(`/api/news?pair=${encodeURIComponent(state.pair)}`)
+      .then(res => res.json())
+      .then(data => { if (data.headlines) strategyContext.headlines = data.headlines; })
+      .catch(e => console.warn('News engine unavailable', e));
+
     const candles = await fetchCandles(state.pair, state.interval, 300, state.apiKey || '');
     state.candles = candles;
     state.isSynthetic = candles[0]?.synthetic ?? true;
@@ -584,9 +590,9 @@ function renderSignal(agg) {
   valEl.textContent = sig;
   valEl.className = `signal-hero-value ${cls}`;
 
-  if (sig === 'BUY') subEl.textContent = `${agg.buyCount} of 21 strategies aligned — ${agg.riskLevel}`;
-  else if (sig === 'SELL') subEl.textContent = `${agg.sellCount} of 21 strategies aligned — ${agg.riskLevel}`;
-  else subEl.textContent = `Only ${Math.max(agg.buyCount, agg.sellCount)} of 21 aligned — 75% threshold not met`;
+  if (sig === 'BUY') subEl.textContent = `${agg.buyCount} of 22 strategies aligned — ${agg.riskLevel}`;
+  else if (sig === 'SELL') subEl.textContent = `${agg.sellCount} of 22 strategies aligned — ${agg.riskLevel}`;
+  else subEl.textContent = `Only ${Math.max(agg.buyCount, agg.sellCount)} of 22 aligned — 75% threshold not met`;
 
   // gauge
   const conf = agg.finalConfidence;
@@ -643,7 +649,7 @@ function renderReasoning(results, agg) {
 
   const header = sig === 'NO TRADE'
     ? `<div class="reasoning-alert amber">⚠️ ${agg.finalConfidence}% consensus — below 75% threshold. ${agg.buyCount} strategies bullish vs ${agg.sellCount} bearish. Waiting for stronger alignment.</div>`
-    : `<div class="reasoning-alert ${sig === 'BUY' ? 'green' : 'red'}">✅ ${sig} confirmed at ${agg.finalConfidence}% consensus (${agg.riskLevel}). ${direction === 'buy' ? agg.buyCount : agg.sellCount}/21 strategies agree.</div>`;
+    : `<div class="reasoning-alert ${sig === 'BUY' ? 'green' : 'red'}">✅ ${sig} confirmed at ${agg.finalConfidence}% consensus (${agg.riskLevel}). ${direction === 'buy' ? agg.buyCount : agg.sellCount}/22 strategies agree.</div>`;
 
   const bullets = supporting.map(r =>
     `<div class="reasoning-item"><span class="reasoning-name">${r.name}</span><span class="reasoning-text">${r.reason}</span></div>`

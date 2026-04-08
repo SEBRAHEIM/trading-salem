@@ -10,6 +10,13 @@ const last = arr => arr[arr.length - 1];
 const prev = (arr, n = 1) => arr[arr.length - 1 - n];
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Strategy Context — Holds external dynamic data like live news headlines
+// ─────────────────────────────────────────────────────────────────────────────
+export const strategyContext = {
+  headlines: []
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Strategy definitions — name, weight, analyzer function
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -557,6 +564,72 @@ export const STRATEGIES = [
       return { signal: 'neutral', confidence: 50, reason: `No Whale activity detected. Normal volume profile.` };
     },
   },
+
+  // ─── 22. AI Macro & News Sentiment (Weight: 8) ─────────────────────────
+  {
+    id: 'news_sentiment',
+    name: 'Macro News & Sentiment AI',
+    category: 'Sentiment',
+    weight: 8,
+    description: 'Scans live headlines for Fed/Powell mentions, geopolitical tension (War, Trump, Musk), and economic shocks to predict immediate panic or euphoria.',
+    analyze(candles) {
+      const headlines = strategyContext.headlines || [];
+      if (!headlines.length) return { signal: 'neutral', confidence: 0, reason: 'Awaiting live news feed data...' };
+
+      let bullScore = 0;
+      let bearScore = 0;
+      let matchedKeywords = [];
+
+      // Keyword dictionaries weighted by impact
+      const keywords = {
+        bullish: [
+          { word: 'war', weight: 4 }, { word: 'escalat', weight: 3 }, { word: 'tension', weight: 3 },
+          { word: 'crash', weight: 3 }, { word: 'plunge', weight: 2 }, { word: 'panic', weight: 4 },
+          { word: 'cut rate', weight: 3 }, { word: 'dovish', weight: 2 }, { word: 'stimulus', weight: 3 },
+          { word: 'crisis', weight: 3 }, { word: 'emergency', weight: 4 }
+        ],
+        bearish: [
+          { word: 'peace', weight: 4 }, { word: 'hike rate', weight: 3 }, { word: 'hawkish', weight: 2 },
+          { word: 'cool inflation', weight: 3 }, { word: 'strong dollar', weight: 3 },
+          { word: 'recovery', weight: 2 }, { word: 'all-time high', weight: 1 }
+        ],
+        figures: ['trump', 'musk', 'elon', 'powell', 'fed', 'federal reserve', 'biden', 'putin']
+      };
+
+      const text = headlines.join(' ').toLowerCase();
+
+      // Scan all 40 latest headlines
+      for (const k of keywords.bullish) {
+        if (text.includes(k.word)) { bullScore += k.weight; matchedKeywords.push(k.word); }
+      }
+      for (const k of keywords.bearish) {
+        if (text.includes(k.word)) { bearScore += k.weight; matchedKeywords.push(k.word); }
+      }
+      for (const f of keywords.figures) {
+        if (text.includes(f)) {
+          // If a key figure is mentioned alongside existing momentum, they act as an amplifier/catalyst
+          bullScore = bullScore > 0 ? bullScore + 1 : bullScore;
+          bearScore = bearScore > 0 ? bearScore + 1 : bearScore;
+          if (!matchedKeywords.includes(f)) matchedKeywords.push(f);
+        }
+      }
+
+      const total = bullScore + bearScore;
+      if (total === 0) return { signal: 'neutral', confidence: 50, reason: `No extreme macro/sentiment catalysts detected in the last 40 headlines.` };
+
+      const isBull = bullScore > bearScore;
+      // High score means global crisis or peace.
+      const rawConfidence = 60 + Math.abs(bullScore - bearScore) * 8;
+      const confidence = Math.min(97, rawConfidence);
+      const direction = isBull ? 'buy' : 'sell';
+      
+      return {
+        signal: direction,
+        confidence: Math.round(confidence),
+        reason: `MACRO SENTIMENT ALARM: ${direction === 'buy' ? 'Bullish risk-off bias (Fear/Stimulus)' : 'Bearish risk-on bias (Peace/Rate hikes)'} detected. Key triggers found: [${matchedKeywords.join(', ')}].`
+      };
+    }
+  }
 
 ];
 
