@@ -814,6 +814,77 @@ export const STRATEGIES = [
         reason: whaleReason
       };
     }
+  },
+
+  // ─── 25. Independent Smart Money Concepts (FVG / OB) ─────────────────────
+  {
+    id: 'smc_order_blocks',
+    name: 'SMC: Fair Value Gaps & Order Blocks',
+    category: 'Volume',
+    weight: 18, // Very heavy, practically matches Whales
+    description: 'Mathematically calculates independent Institutional Liquidity Voids (FVGs) and Order Blocks (OBs) using raw price-action anomalies.',
+    analyze(candles) {
+      if (candles.length < 30) return { signal: 'neutral', confidence: 0, reason: 'Insufficient data' };
+      
+      const { fvgs, orderBlocks } = I.smartMoneyConcepts(candles, 30);
+      const currentPrice = candles[candles.length - 1].close;
+
+      let score = 0;
+      let reasons = [];
+      let finalSignal = 'neutral';
+
+      // Find the closest active Unmitigated Order Blocks
+      const bullishOBs = orderBlocks.filter(ob => ob.type === 'bullish' && currentPrice >= ob.bottom);
+      const bearishOBs = orderBlocks.filter(ob => ob.type === 'bearish' && currentPrice <= ob.top);
+
+      if (bullishOBs.length) {
+        const closest = bullishOBs.sort((a,b) => (currentPrice - a.top) - (currentPrice - b.top))[0];
+        // If price is digging into the bullish order block
+        if (currentPrice <= closest.top && currentPrice >= closest.bottom) {
+          finalSignal = 'buy';
+          score = 92;
+          reasons.push(`Price mitigating Bullish Order Block at ${closest.top.toFixed(3)}. Institutional synthetic accumulation detected.`);
+        }
+      }
+
+      if (bearishOBs.length && finalSignal !== 'buy') {
+        const closest = bearishOBs.sort((a,b) => (a.bottom - currentPrice) - (b.bottom - currentPrice))[0];
+        if (currentPrice >= closest.bottom && currentPrice <= closest.top) {
+          finalSignal = 'sell';
+          score = 92;
+          reasons.push(`Price hitting Bearish Order Block at ${closest.bottom.toFixed(3)}. Institutional synthetic distribution detected.`);
+        }
+      }
+
+      // If no OBs active, check FVGs serving as magnets
+      if (finalSignal === 'neutral') {
+        const bullishFVGs = fvgs.filter(f => f.type === 'bullish');
+        if (bullishFVGs.length) {
+          const closest = bullishFVGs.sort((a,b) => b.top - a.top)[0];
+          if (currentPrice > closest.top && (currentPrice - closest.top)/currentPrice < 0.003) {
+            finalSignal = 'buy';
+            score = 80;
+            reasons.push(`Price approaching synthetic Bullish FVG gap at ${closest.top.toFixed(3)} acting as liquidity support.`);
+          }
+        }
+
+        const bearishFVGs = fvgs.filter(f => f.type === 'bearish');
+        if (bearishFVGs.length && finalSignal === 'neutral') {
+          const closest = bearishFVGs.sort((a,b) => a.bottom - b.bottom)[0];
+          if (currentPrice < closest.bottom && (closest.bottom - currentPrice)/currentPrice < 0.003) {
+            finalSignal = 'sell';
+            score = 80;
+            reasons.push(`Price approaching synthetic Bearish FVG gap at ${closest.bottom.toFixed(3)} acting as liquidity resistance.`);
+          }
+        }
+      }
+
+      if (reasons.length > 0) {
+        return { signal: finalSignal, confidence: score, reason: reasons.join(' ') };
+      }
+
+      return { signal: 'neutral', confidence: 50, reason: 'No active synthetic Order Blocks or FVGs detected in immediate range.' };
+    }
   }
 
 ];
@@ -887,6 +958,7 @@ export function aggregateSignals(results) {
   const mtf = results.find(r => r.id === 'multi_timeframe');
   const whale = results.find(r => r.id === 'whale_tracker');
   const uwWhale = results.find(r => r.id === 'unusual_whales_csv');
+  const smc = results.find(r => r.id === 'smc_order_blocks');
   const adx = results.find(r => r.id === 'adx');
 
   if (topSignal !== 'neutral') {
@@ -894,7 +966,10 @@ export function aggregateSignals(results) {
       vetoReason = `VETO: Signal (${topSignal}) contradicts macroscopic Higher Timeframe trend (${mtf.signal}). Trade blocked to prevent chop loss.`;
     } 
     else if (uwWhale && uwWhale.confidence >= 90 && uwWhale.signal !== 'neutral' && uwWhale.signal !== topSignal) {
-      vetoReason = `VETO BY CSV: You are trading against an extreme Options Flow wall at ${uwWhale.signal === 'buy' ? 'Support' : 'Resistance'}. Do not trade into a Whale Trap!`;
+      vetoReason = `VETO BY UW API: You are trading against an extreme Options Flow wall at ${uwWhale.signal === 'buy' ? 'Support' : 'Resistance'}. Do not trade into a Whale Trap!`;
+    }
+    else if (smc && smc.confidence >= 90 && smc.signal !== 'neutral' && smc.signal !== topSignal) {
+      vetoReason = `VETO BY SMC ENGINE: You are trading blindly into an Institutional Order Block (${smc.signal}). The synthetic engine blocked this trade to prevent instant reversal.`;
     }
     else if (whale && whale.confidence >= 80 && whale.signal !== 'neutral' && whale.signal !== topSignal) {
       vetoReason = `VETO: Signal (${topSignal}) contradicts Institutional Smart Money (${whale.signal}). Do not trade against whales.`;

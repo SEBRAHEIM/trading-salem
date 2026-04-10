@@ -391,6 +391,74 @@ export const Indicators = {
     return patterns.length ? patterns : [{ name: 'No Pattern', signal: 'neutral' }];
   },
 
+  // ─── Smart Money Concepts (FVG & Order Blocks) ──────────────────────────────
+
+  smartMoneyConcepts(candles, lookback = 30) {
+    if (candles.length < lookback) return { fvgs: [], orderBlocks: [] };
+    const recent = candles.slice(-lookback);
+    
+    let fvgs = [];
+    let orderBlocks = [];
+
+    for (let i = 2; i < recent.length - 1; i++) {
+      const c1 = recent[i - 2];
+      const c2 = recent[i - 1]; // Momentum candle
+      const c3 = recent[i];
+
+      // Bullish FVG (Gap between C1 High and C3 Low)
+      if (c1.high < c3.low && c2.close > c2.open) {
+        fvgs.push({
+          type: 'bullish',
+          top: c3.low,
+          bottom: c1.high,
+          index: i
+        });
+        
+        // Find the Bullish Order Block (last down candle before this FVG move)
+        let obFound = null;
+        for (let j = i - 2; j >= Math.max(0, i - 10); j--) {
+          if (recent[j].close < recent[j].open) { // Down candle
+            obFound = {
+              type: 'bullish',
+              top: recent[j].high,
+              bottom: recent[j].low,
+              index: j
+            };
+            break;
+          }
+        }
+        if (obFound) orderBlocks.push(obFound);
+      }
+
+      // Bearish FVG (Gap between C1 Low and C3 High)
+      if (c1.low > c3.high && c2.close < c2.open) {
+        fvgs.push({
+          type: 'bearish',
+          top: c1.low,
+          bottom: c3.high,
+          index: i
+        });
+
+        // Bearish Order Block (last up candle before this FVG move)
+        let obFound = null;
+        for (let j = i - 2; j >= Math.max(0, i - 10); j--) {
+          if (recent[j].close > recent[j].open) { // Up candle
+            obFound = {
+              type: 'bearish',
+              top: recent[j].high,
+              bottom: recent[j].low,
+              index: j
+            };
+            break;
+          }
+        }
+        if (obFound) orderBlocks.push(obFound);
+      }
+    }
+    
+    return { fvgs, orderBlocks };
+  },
+
   // ─── Trendline / Channel Detection ──────────────────────────────────────────
 
   trendlineBreakout(candles, lookback = 20) {
