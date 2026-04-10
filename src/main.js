@@ -117,13 +117,13 @@ document.getElementById('app').innerHTML = `
           </div>
           <div class="gauge-track">
             <div class="gauge-fill" id="gauge-fill" style="width:0%"></div>
-            <div class="gauge-threshold" style="left:75%">
+            <div class="gauge-threshold" style="left:80%">
               <div class="gauge-threshold-line"></div>
             </div>
           </div>
           <div class="gauge-legend">
             <span>0%</span>
-            <span class="gauge-threshold-label">75% Threshold</span>
+            <span class="gauge-threshold-label">80% Threshold</span>
             <span>100%</span>
           </div>
         </div>
@@ -385,7 +385,7 @@ function runAnalysis() {
   if (!state.candles.length) return;
 
   const results = runAllStrategies(state.candles);
-  const agg = aggregateSignals(results);
+  const agg = aggregateSignals(results, state.lastSignal);
 
   state.strategyResults = results;
   state.aggregated = agg;
@@ -479,11 +479,11 @@ function renderSignal(agg) {
 
   if (sig === 'BUY') subEl.textContent = `${agg.buyCount} of 22 strategies aligned — ${agg.riskLevel}`;
   else if (sig === 'SELL') subEl.textContent = `${agg.sellCount} of 22 strategies aligned — ${agg.riskLevel}`;
-  else subEl.textContent = `Only ${Math.max(agg.buyCount, agg.sellCount)} of 22 aligned — 75% threshold not met`;
+  else subEl.textContent = `Only ${Math.max(agg.buyCount, agg.sellCount)} of 22 aligned — 80% threshold not met`;
 
   // gauge
   const conf = agg.finalConfidence;
-  const gClass = conf >= 85 ? 'high' : conf >= 75 ? 'mid' : 'low';
+  const gClass = conf >= 85 ? 'high' : conf >= 80 ? 'mid' : 'low';
   fill.style.width = `${conf}%`;
   fill.className = `gauge-fill ${gClass}`;
   pctEl.textContent = `${conf}%`;
@@ -535,7 +535,7 @@ function renderReasoning(results, agg) {
     : results.filter(r => r.signal === 'neutral').slice(0, 3);
 
   const header = sig === 'NO TRADE'
-    ? `<div class="reasoning-alert amber">⚠️ ${agg.finalConfidence}% consensus — below 75% threshold. ${agg.buyCount} strategies bullish vs ${agg.sellCount} bearish. Waiting for stronger alignment.</div>`
+    ? `<div class="reasoning-alert amber">⚠️ ${agg.finalConfidence}% consensus — below 80% threshold. ${agg.buyCount} strategies bullish vs ${agg.sellCount} bearish. Waiting for stronger alignment.</div>`
     : `<div class="reasoning-alert ${sig === 'BUY' ? 'green' : 'red'}">✅ ${sig} confirmed at ${agg.finalConfidence}% consensus (${agg.riskLevel}). ${direction === 'buy' ? agg.buyCount : agg.sellCount}/22 strategies agree.</div>`;
 
   const bullets = supporting.map(r =>
@@ -676,7 +676,7 @@ function renderBacktest(r, pair, interval, balance = 1000) {
       </table>
     </div>
     <div style="background:var(--accent-amber-glow);border:1px solid var(--accent-amber);border-radius:var(--radius-md);padding:14px;font-size:11px;color:var(--text-secondary);line-height:1.7">
-      <strong style="color:var(--accent-amber)">⚠️ Disclaimer:</strong> Uses demo/synthetic data. Past performance does not guarantee future results. The 75% threshold reflects strategy <em>consensus</em>, not a guaranteed win rate. Never risk more than you can afford to lose.
+      <strong style="color:var(--accent-amber)">⚠️ Disclaimer:</strong> Uses demo/synthetic data. Past performance does not guarantee future results. The 80% threshold reflects strategy <em>consensus</em>, not a guaranteed win rate. Never risk more than you can afford to lose.
     </div>
   `;
 }

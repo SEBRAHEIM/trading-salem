@@ -922,7 +922,7 @@ export function runAllStrategies(candles) {
   });
 }
 
-export function aggregateSignals(results) {
+export function aggregateSignals(results, lastSignal = null) {
   const totalWeight = results.reduce((s, r) => s + r.weight, 0);
   let buyScore = 0, sellScore = 0, neutralScore = 0;
 
@@ -949,7 +949,12 @@ export function aggregateSignals(results) {
   const countRatio = dirCount / totalSignals;
   const finalConfidence = Math.round((rawConfidence * 0.7 + countRatio * 100 * 0.3));
 
-  const THRESHOLD = 87; // Extreme strictness to stop losses
+  // HYSTERESIS: Strict 80% to open, but allows buffering down to 75% to prevent signal drops from micro-noise
+  let THRESHOLD = 80; 
+  if (lastSignal === topSignal.toUpperCase()) {
+    THRESHOLD = 75; // Latch mechanism
+  }
+
   let finalSignal = 'NO TRADE';
   let riskLevel = 'None';
   let vetoReason = '';
