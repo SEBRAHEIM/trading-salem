@@ -80,9 +80,6 @@ document.getElementById('app').innerHTML = `
     </div>
   </header>
 
-    </div>
-  </header>
-
   <div class="main-layout">
 
     <!-- ═══ SIGNAL DASHBOARD ═══════════════════════════════════════════════ -->
