@@ -1,0 +1,14 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron-whales",
+      "schedule": "*/30 * * * *"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
