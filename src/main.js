@@ -9,6 +9,7 @@ import { initChart, updateChart, updateChartData, addSignalMarker } from './comp
 import { fetchCandles, fetchLivePrice, addSyntheticTick, PAIRS, INTERVALS } from './data/marketData.js';
 import { runAllStrategies, aggregateSignals, strategyContext } from './strategies/strategies.js';
 import { computeRiskParams } from './data/backtest.js';
+import { parseWhalesCSV, whaleLevels } from './data/whales.js';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 const state = {
@@ -67,6 +68,13 @@ document.getElementById('app').innerHTML = `
           autocomplete="off" spellcheck="false" />
         <a href="https://twelvedata.com/pricing" target="_blank" class="api-key-link">Free key</a>
       </div>
+      
+      <!-- Whales Upload -->
+      <label class="btn" style="border-color:var(--purple);color:var(--purple);cursor:pointer;background:transparent" title="Upload Unusual Whales CSV Options Flow">
+        🐳 WHALES CSV
+        <input type="file" id="whales-csv-upload" accept=".csv" style="display:none;" />
+      </label>
+
       <div class="live-badge" id="live-badge"><div class="live-dot"></div>LIVE</div>
       <button class="btn btn-primary" id="refresh-btn">↺ Refresh</button>
     </div>
@@ -308,6 +316,23 @@ apiKeyEl.addEventListener('change', () => {
   state.apiKey = apiKeyEl.value.trim();
   localStorage.setItem('tdApiKey', state.apiKey);
   loadAndAnalyze(); // reload with new key
+});
+
+// ─── Whales CSV Upload Handler ────────────────────────────────────────────────
+document.getElementById('whales-csv-upload').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    const csvContent = event.target.result;
+    const levels = parseWhalesCSV(csvContent);
+    if (levels && levels.active) {
+      alert(`🐳 Whale Flow Loaded!\nIntercepted ${levels.support.length} Support levels and ${levels.resistance.length} Resistance levels.`);
+      loadAndAnalyze(); // Trigger re-analysis with new levels
+    }
+  };
+  reader.readAsText(file);
 });
 
 // ─── Load & Analyze ───────────────────────────────────────────────────────────

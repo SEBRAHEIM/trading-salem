@@ -768,6 +768,52 @@ export const STRATEGIES = [
         reason: `FULL MARKET READ: ${direction === 'buy' ? 'Heavy Risk-Off (Geopolitics/Fear)' : 'Heavy Risk-On (Peace/Hawkish)'} detected.${trumpManipulation ? ' TRUMP VERBAL INTERVENTION DETECTED.' : ''} Triggers: [${matchedKeywords.join(', ')}].`
       };
     }
+  },
+
+  // ─── 24. Unusual Whales Dark Pool (CSV Engine) ────────────────────────
+  {
+    id: 'unusual_whales_csv',
+    name: 'Unusual Whales Dark Pool CSV',
+    category: 'Volume',
+    weight: 20, // Extreme weight!
+    description: 'Reads exact options flow / dark pool levels from your dropped CSV and heavily magnets price action to those whale strike zones.',
+    analyze(candles) {
+      if (!whaleLevels || !whaleLevels.active) {
+        return { signal: 'neutral', confidence: 0, reason: 'No Whale CSV Dropped.' };
+      }
+
+      const currentPrice = candles[candles.length - 1].close;
+      let whaleScore = 0;
+      let whaleReason = `Whale data mapped. No major Dark Pool strikes in immediate proximity of ${currentPrice}.`;
+      let whaleSignal = "neutral";
+      
+      // Check Call Resistance (Whales selling calls, or dealers shorting)
+      for (const res of whaleLevels.resistance) {
+        if (currentPrice < res && (res - currentPrice) / currentPrice < 0.005) { // 0.5% zone
+          whaleSignal = "sell";
+          whaleScore = Math.max(whaleScore, 92);
+          whaleReason = `Price hitting Heavy Call Resistance (${res}) based on ${whaleLevels.lastUpdated} CSV Flow. Expect rejection.`;
+        }
+      }
+      
+      // Check Put Support
+      for (const sup of whaleLevels.support) {
+        if (currentPrice > sup && (currentPrice - sup) / currentPrice < 0.005) { // 0.5% zone
+          // If within put support
+          if (whaleSignal !== 'sell' || (currentPrice - sup) < (whaleLevels.resistance[0] - currentPrice)) {
+            whaleSignal = "buy";
+            whaleScore = Math.max(whaleScore, 92);
+            whaleReason = `Price hitting Massive Put Support (${sup}) based on ${whaleLevels.lastUpdated} CSV Flow. Expect aggressive bounce.`;
+          }
+        }
+      }
+      
+      return {
+        signal: whaleSignal,
+        confidence: whaleScore || 50,
+        reason: whaleReason
+      };
+    }
   }
 
 ];
@@ -840,12 +886,16 @@ export function aggregateSignals(results) {
   // ─── MASTER VETO SYSTEM (Capital Protection) ─────────────────────────────────
   const mtf = results.find(r => r.id === 'multi_timeframe');
   const whale = results.find(r => r.id === 'whale_tracker');
+  const uwWhale = results.find(r => r.id === 'unusual_whales_csv');
   const adx = results.find(r => r.id === 'adx');
 
   if (topSignal !== 'neutral') {
     if (mtf && mtf.signal !== 'neutral' && mtf.signal !== topSignal) {
       vetoReason = `VETO: Signal (${topSignal}) contradicts macroscopic Higher Timeframe trend (${mtf.signal}). Trade blocked to prevent chop loss.`;
     } 
+    else if (uwWhale && uwWhale.confidence >= 90 && uwWhale.signal !== 'neutral' && uwWhale.signal !== topSignal) {
+      vetoReason = `VETO BY CSV: You are trading against an extreme Options Flow wall at ${uwWhale.signal === 'buy' ? 'Support' : 'Resistance'}. Do not trade into a Whale Trap!`;
+    }
     else if (whale && whale.confidence >= 80 && whale.signal !== 'neutral' && whale.signal !== topSignal) {
       vetoReason = `VETO: Signal (${topSignal}) contradicts Institutional Smart Money (${whale.signal}). Do not trade against whales.`;
     }
