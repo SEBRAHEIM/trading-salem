@@ -13,6 +13,15 @@ export default async function handler(req, res) {
     feeds.push('https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=2000&id=10000664');
   }
 
+  // ─── LIVE TWITTER (X) MACRO TRACKER ───────────────────────────────────────
+  // Ingests master market-mover tweets directly into the AI's headline queue
+  const twitterTargets = ['realDonaldTrump', 'elonmusk', 'unusual_whales', 'zerohedge'];
+  
+  for (const handle of twitterTargets) {
+    feeds.push(`https://rsshub.app/twitter/user/${handle}`);
+    feeds.push(`https://nitter.poast.org/${handle}/rss`); // Fallback proxy
+  }
+
   try {
     let allHeadlines = [];
     for (const url of feeds) {

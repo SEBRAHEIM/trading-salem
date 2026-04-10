@@ -160,20 +160,47 @@ export function computeRiskParams(candles, signal, confidence, interval = '15min
   }
   const avgATR = atrArr.slice(-14).reduce((a, b) => a + b, 0) / 14;
   const price = last.close;
+  const isBuy = signal === 'BUY';
 
-  // Timeframe multiplier — 15m/30m warrant bigger TP targets
-  const tfMult = { '1min': 1.0, '5min': 1.5, '15min': 2.2, '30min': 3.0, '1h': 3.5, '4h': 4.5, '1day': 6.0 }[interval] || 2.2;
+  // ─── Advanced AI Dynamic Swing/Pivot SL ──────────────────────────────────────
+  // Finds the most recent structural support/resistance to tuck the SL behind.
+  const recentPeriod = 15;
+  const recentCandles = candles.slice(-recentPeriod);
+  const highestHigh = Math.max(...recentCandles.map(c => c.high));
+  const lowestLow = Math.min(...recentCandles.map(c => c.low));
 
-  // SL: tight when high confidence, TP: scaled by timeframe for bigger picture
-  const slMultiplier = confidence >= 95 ? 1.5 : confidence >= 85 ? 2.0 : 2.5;
-  const tp1Multiplier = slMultiplier * 1.5; // TP1 1:1.5
-  const tp2Multiplier = slMultiplier * tfMult;
-  const riskReward   = tp2Multiplier / slMultiplier;
+  let structuralSl = isBuy 
+    ? lowestLow - (avgATR * 0.1) // Just below recent swing low
+    : highestHigh + (avgATR * 0.1); // Just above recent swing high
 
-  const isBuy     = signal === 'BUY';
-  const stopLoss  = isBuy ? price - avgATR * slMultiplier  : price + avgATR * slMultiplier;
-  const takeProfit1= isBuy ? price + avgATR * tp1Multiplier  : price - avgATR * tp1Multiplier;
-  const takeProfit2= isBuy ? price + avgATR * tp2Multiplier  : price - avgATR * tp2Multiplier;
+  let slDistance = Math.abs(price - structuralSl);
+
+  // AI Strict Capital Preservation limits: If swing is too distant, cap the SL tightly!
+  // Prevents the "stop loss is too far" bleed.
+  const maxSlMultiplier = confidence >= 95 ? 0.8 : confidence >= 90 ? 1.0 : 1.2;
+  const maxAtrSlDistance = avgATR * maxSlMultiplier;
+
+  // Force tighten if too wide
+  if (slDistance > maxAtrSlDistance) {
+    structuralSl = isBuy ? price - maxAtrSlDistance : price + maxAtrSlDistance;
+  }
+  // Base minimum breathing room (to avoid instant spread-out)
+  else if (slDistance < avgATR * 0.4) {
+    structuralSl = isBuy ? price - (avgATR * 0.4) : price + (avgATR * 0.4);
+  }
+
+  const stopLoss = structuralSl;
+  const actualSlDistance = Math.abs(price - stopLoss);
+
+  // Timeframe multiplier — higher timeframes get proportionally larger take profits
+  const tfMult = { '1min': 1.0, '5min': 1.5, '15min': 2.2, '30min': 3.0, '1h': 4.0, '4h': 5.0, '1day': 6.0 }[interval] || 2.2;
+
+  // Take Profits are now highly asymmetric based on the tightened SL
+  // (Aiming for 1v1.5 and 1v3.0+ Risk/Reward)
+  const takeProfit1 = isBuy ? price + (actualSlDistance * 1.5) : price - (actualSlDistance * 1.5);
+  const takeProfit2 = isBuy ? price + (actualSlDistance * Math.max(3.0, tfMult)) : price - (actualSlDistance * Math.max(3.0, tfMult));
+
+  const riskReward = Math.abs(takeProfit2 - price) / actualSlDistance;
 
   const volatilityPct = (avgATR / price) * 100;
   // Gold (>1000) and Oil (>50) have different pip scales

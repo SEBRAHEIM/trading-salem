@@ -173,6 +173,48 @@ export const Indicators = {
     });
   },
 
+  // ─── Money Flow Index (MFI) ────────────────────────────────────────────────
+
+  mfi(candles, period = 14) {
+    const result = [];
+    let posFlow = 0, negFlow = 0;
+    const typPrices = candles.map(c => (c.high + c.low + c.close) / 3);
+    const rawMoneyFlow = typPrices.map((tp, i) => tp * (candles[i].volume || 1));
+    
+    for (let i = 1; i < candles.length; i++) {
+      const isPos = typPrices[i] > typPrices[i - 1];
+      const isNeg = typPrices[i] < typPrices[i - 1];
+      const currentFlow = rawMoneyFlow[i];
+      
+      const pFlow = isPos ? currentFlow : 0;
+      const nFlow = isNeg ? currentFlow : 0;
+      
+      if (i < period) {
+        posFlow += pFlow;
+        negFlow += nFlow;
+        result.push(null);
+        continue;
+      }
+      
+      if (i === period) {
+        posFlow += pFlow;
+        negFlow += nFlow;
+      } else {
+        const oldIsPos = typPrices[i - period + 1] > typPrices[i - period];
+        const oldIsNeg = typPrices[i - period + 1] < typPrices[i - period];
+        const oldFlow = rawMoneyFlow[i - period + 1];
+        posFlow = posFlow - (oldIsPos ? oldFlow : 0) + pFlow;
+        negFlow = negFlow - (oldIsNeg ? oldFlow : 0) + nFlow;
+      }
+      
+      const mfr = posFlow / (negFlow || 0.0001);
+      result.push(100 - (100 / (1 + mfr)));
+    }
+    // Pad start with null
+    return [null, ...result];
+  },
+
+
   // ─── Ichimoku ───────────────────────────────────────────────────────────────
 
   ichimoku(candles, tenkan = 9, kijun = 26, senkou = 52) {

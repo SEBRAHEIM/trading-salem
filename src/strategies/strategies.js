@@ -13,7 +13,10 @@ const prev = (arr, n = 1) => arr[arr.length - 1 - n];
 // Strategy Context — Holds external dynamic data like live news headlines
 // ─────────────────────────────────────────────────────────────────────────────
 export const strategyContext = {
-  headlines: []
+  headlines: [],
+  correlatedAssets: {
+    // Expected format: 'DXY': { trend: 'up', value: 104.5 }
+  }
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -555,23 +558,104 @@ export const STRATEGIES = [
       const fadingVol = volumes[volumes.length-1] < avgVol * 0.4 && volumes[volumes.length-2] < avgVol * 0.4;
       
       if (uptrend && fadingVol) {
-         return { signal: 'sell', confidence: 65, reason: `Retail Trap — uptrend stalling on vanishing volume. No institutional backing.` };
+         return { signal: 'sell', confidence: 70, reason: `Retail Trap — uptrend stalling on vanishing volume. No institutional backing.` };
       }
       if (downtrend && fadingVol) {
-         return { signal: 'buy', confidence: 65, reason: `Retail Trap — downtrend stalling on vanishing volume. No institutional backing.` };
+         return { signal: 'buy', confidence: 70, reason: `Retail Trap — downtrend stalling on vanishing volume. No institutional backing.` };
       }
       
       return { signal: 'neutral', confidence: 50, reason: `No Whale activity detected. Normal volume profile.` };
     },
   },
 
-  // ─── 22. AI Macro & News Sentiment (Weight: 8) ─────────────────────────
+  // ─── 22. Money Flow Index (Liquidity Tracker) (Weight: 8) ────────────────
+  {
+    id: 'mfi_liquidity',
+    name: 'Money Flow Liquidity',
+    category: 'Volume',
+    weight: 8,
+    description: 'Tracks actual capital flowing into or out of the asset using volume-weighted price (MFI).',
+    analyze(candles) {
+      const mfiOut = I.mfi(candles, 14);
+      const current = last(mfiOut);
+      const prev1 = prev(mfiOut);
+      
+      if (current === null) return { signal: 'neutral', confidence: 0, reason: 'Insufficient data' };
+      
+      if (current > 80) {
+        return { signal: 'sell', confidence: Math.min(90, 60 + (current - 80) * 1.5), reason: `Extreme liquidity influx — overbought at MFI ${current.toFixed(1)}. Smart money distribution likely.` };
+      }
+      if (current < 20) {
+        return { signal: 'buy', confidence: Math.min(90, 60 + (20 - current) * 1.5), reason: `Liquidity drain — oversold at MFI ${current.toFixed(1)}. Accumulation zone for smart money.` };
+      }
+      
+      // Trend in liquidity
+      if (current > 50 && prev1 <= 50) {
+        return { signal: 'buy', confidence: 65, reason: `Liquidity tide turning positive (MFI crossed 50). Capital entering market.` };
+      }
+      if (current < 50 && prev1 >= 50) {
+        return { signal: 'sell', confidence: 65, reason: `Liquidity tide turning negative (MFI crossed 50). Capital exiting market.` };
+      }
+      
+      return { signal: current > 50 ? 'buy' : 'sell', confidence: 45, reason: `Normal liquidity levels (MFI ${current.toFixed(1)}).` };
+    }
+  },
+
+  // ─── 23. Cross-Asset Correlation (Weight: 7) ───────────────────────────────
+  {
+    id: 'cross_asset_correlation',
+    name: 'Intermarket Correlation',
+    category: 'Sentiment',
+    weight: 7,
+    description: 'Analyzes relationship between indices (e.g. S&P500 falling -> Gold rising) and base currencies (e.g. DXY rising -> assets falling).',
+    analyze(candles) {
+      const { correlatedAssets } = strategyContext;
+      if (!correlatedAssets || Object.keys(correlatedAssets).length === 0) {
+        return { signal: 'neutral', confidence: 40, reason: 'No cross-asset correlation data provided.' };
+      }
+      
+      let score = 0;
+      let reasons = [];
+      
+      // Inverse correlation with DXY (Dollar Index)
+      if (correlatedAssets['DXY']) {
+        if (correlatedAssets['DXY'].trend === 'up') {
+          score -= 10;
+          reasons.push('Strong DXY dragging non-USD assets down.');
+        } else if (correlatedAssets['DXY'].trend === 'down') {
+          score += 10;
+          reasons.push('Weak DXY pushing non-USD assets up.');
+        }
+      }
+      
+      // Example: S&P500 / VIX relationship for Risk-on vs Risk-off
+      if (correlatedAssets['SPX']) {
+        if (correlatedAssets['SPX'].trend === 'down') {
+          score += 10; // Assuming Gold/Safe Haven
+          reasons.push('Indices falling; Safe haven capital rotation expected.');
+        } else if (correlatedAssets['SPX'].trend === 'up') {
+          score -= 5;
+          reasons.push('Indices rising; Risk-on environment drawing capital away from safe havens.');
+        }
+      }
+      
+      if (score > 0) {
+        return { signal: 'buy', confidence: Math.min(85, 60 + score * 2), reason: `Positive correlation tailwinds: ${reasons.join(' ')}` };
+      } else if (score < 0) {
+        return { signal: 'sell', confidence: Math.min(85, 60 + Math.abs(score) * 2), reason: `Negative correlation headwinds: ${reasons.join(' ')}` };
+      }
+      
+      return { signal: 'neutral', confidence: 50, reason: 'Cross-market correlations are currently mixed or flat.' };
+    }
+  },
+
+  // ─── 24. AI Macro & News Sentiment (Weight: 9) ─────────────────────────
   {
     id: 'news_sentiment',
     name: 'Macro News & Sentiment AI',
     category: 'Sentiment',
-    weight: 8,
-    description: 'Scans live headlines for Fed/Powell mentions, geopolitical tension (War, Trump, Musk), and economic shocks to predict immediate panic or euphoria.',
+    weight: 9,
+    description: 'Scans live headlines for Fed remarks, Geopolitics (Iran/Middle East tension, War), and explicitly tracks Trump verbal interventions & manipulation (Jawboning, Tariffs) to predict panic or euphoria.',
     analyze(candles) {
       const headlines = strategyContext.headlines || [];
       if (!headlines.length) return { signal: 'neutral', confidence: 0, reason: 'Awaiting live news feed data...' };
@@ -579,26 +663,76 @@ export const STRATEGIES = [
       let bullScore = 0;
       let bearScore = 0;
       let matchedKeywords = [];
+      let trumpManipulation = false;
 
-      // Keyword dictionaries weighted by impact
+      // The Master Market Catalyst Dictionary - Covers every systemic market trigger
       const keywords = {
         bullish: [
-          { word: 'war', weight: 4 }, { word: 'escalat', weight: 3 }, { word: 'tension', weight: 3 },
-          { word: 'crash', weight: 3 }, { word: 'plunge', weight: 2 }, { word: 'panic', weight: 4 },
-          { word: 'cut rate', weight: 3 }, { word: 'dovish', weight: 2 }, { word: 'stimulus', weight: 3 },
-          { word: 'crisis', weight: 3 }, { word: 'emergency', weight: 4 }
+          // Geopolitical / Conflict (Bullish for Safe Havens like Gold, Bullish for Oil)
+          { word: 'war', weight: 5 }, { word: 'escalat', weight: 4 }, { word: 'tension', weight: 4 },
+          { word: 'iran', weight: 5 }, { word: 'israel', weight: 4 }, { word: 'middle east', weight: 4 },
+          { word: 'sanction', weight: 3 }, { word: 'missile', weight: 5 }, { word: 'strike', weight: 4 },
+          { word: 'invasion', weight: 5 }, { word: 'military', weight: 3 }, { word: 'blockade', weight: 5 },
+          { word: 'hormuz', weight: 5 }, { word: 'strait', weight: 4 }, { word: 'choke point', weight: 5 }, // Global Oil supply shock triggers
+          // Financial Panic / Black Swans
+          { word: 'crash', weight: 5 }, { word: 'plunge', weight: 3 }, { word: 'panic', weight: 5 },
+          { word: 'crisis', weight: 4 }, { word: 'emergency', weight: 5 }, { word: 'black swan', weight: 5 },
+          { word: 'bank run', weight: 5 }, { word: 'contagion', weight: 5 }, { word: 'collapse', weight: 5 },
+          { word: 'default', weight: 5 }, { word: 'bankruptcy', weight: 4 }, { word: 'debt ceiling', weight: 4 },
+          // Liquidity / Central Banking (Dovish)
+          { word: 'cut rate', weight: 4 }, { word: 'dovish', weight: 3 }, { word: 'stimulus', weight: 4 },
+          { word: 'liquidity injection', weight: 4 }, { word: 'quantitative easing', weight: 5 }, { word: 'qe', weight: 4 },
+          { word: 'bailout', weight: 5 }, { word: 'pivot', weight: 4 }, { word: 'printing money', weight: 4 }
         ],
         bearish: [
-          { word: 'peace', weight: 4 }, { word: 'hike rate', weight: 3 }, { word: 'hawkish', weight: 2 },
-          { word: 'cool inflation', weight: 3 }, { word: 'strong dollar', weight: 3 },
-          { word: 'recovery', weight: 2 }, { word: 'all-time high', weight: 1 }
+          // Resolution / Geopolitics
+          { word: 'peace', weight: 5 }, { word: 'truce', weight: 4 }, { word: 'ceasefire', weight: 5 },
+          { word: 'de-escalat', weight: 5 }, { word: 'agreement', weight: 4 }, { word: 'reopen', weight: 4 }, // Reopening of blocked straits/trade routes
+          // Central Banking (Hawkish / Tightening)
+          { word: 'hike rate', weight: 4 }, { word: 'hawkish', weight: 3 }, { word: 'quantitative tightening', weight: 5 },
+          { word: 'qt', weight: 4 }, { word: 'strong dollar', weight: 5 },
+          // Economic Resilience
+          { word: 'recovery', weight: 3 }, { word: 'soft landing', weight: 4 }, { word: 'resilient', weight: 3 },
+          { word: 'beat expectations', weight: 3 }
         ],
-        figures: ['trump', 'musk', 'elon', 'powell', 'fed', 'federal reserve', 'biden', 'putin']
+        figures: [
+          'trump', 'putin', 'biden', 'xi jinping', // Politics
+          'powell', 'yellen', 'lagarde', 'kuroda', 'ueda', // Central Banks (Fed, Treasury, ECB, BOJ)
+          'musk', 'elon', // Tech Manipulation
+          'opec', 'fed', 'fomc', 'federal reserve', 'ecb', 'boj' // Organizations
+        ],
+        systemicEvents: [
+          'election', 'poll', 'landslide', 'swing state', // Elections
+          'nfp', 'cpi', 'ppi', 'gdp', 'inflation', 'jobs report', 'unemployment rate', 'payrolls' // Data Shocks (Market Movers)
+        ]
       };
+
+      const trumpManipulativeRhetoric = ['tariff', 'trade deal', 'great deal', 'fake news', 'tax', 'pump', 'jawbone', 'threaten'];
+      const elonManipulativeRhetoric = ['doge', 'crypto', 'bitcoin', 'ai', 'xai', 'grok', 'to the moon', 'sec', 'funding secured'];
 
       const text = headlines.join(' ').toLowerCase();
 
-      // Scan all 40 latest headlines
+      // Check for Trump Manipulation
+      if (text.includes('trump') || text.includes('realdonaldtrump')) {
+        trumpManipulativeRhetoric.forEach(word => {
+          if (text.includes(word)) {
+            trumpManipulation = true;
+            matchedKeywords.push(`Trump Intervention: ${word}`);
+          }
+        });
+      }
+
+      // Check for Elon Musk Manipulation
+      if (text.includes('elon') || text.includes('musk') || text.includes('elonmusk')) {
+        elonManipulativeRhetoric.forEach(word => {
+          if (text.includes(word)) {
+            trumpManipulation = true; // reusing variable to trigger the confidence spike
+            matchedKeywords.push(`Elon Intervention: ${word}`);
+          }
+        });
+      }
+
+      // Scan all latest headlines
       for (const k of keywords.bullish) {
         if (text.includes(k.word)) { bullScore += k.weight; matchedKeywords.push(k.word); }
       }
@@ -607,26 +741,31 @@ export const STRATEGIES = [
       }
       for (const f of keywords.figures) {
         if (text.includes(f)) {
-          // If a key figure is mentioned alongside existing momentum, they act as an amplifier/catalyst
-          bullScore = bullScore > 0 ? bullScore + 1 : bullScore;
-          bearScore = bearScore > 0 ? bearScore + 1 : bearScore;
+          // If a key figure is mentioned alongside existing momentum, they amplify it
+          bullScore = bullScore > 0 ? bullScore + 2 : bullScore;
+          bearScore = bearScore > 0 ? bearScore + 2 : bearScore;
           if (!matchedKeywords.includes(f)) matchedKeywords.push(f);
         }
       }
 
       const total = bullScore + bearScore;
-      if (total === 0) return { signal: 'neutral', confidence: 50, reason: `No extreme macro/sentiment catalysts detected in the last 40 headlines.` };
+      if (total < 3 && !trumpManipulation) return { signal: 'neutral', confidence: 50, reason: `No extreme macro/sentiment catalysts detected. Minor keywords: [${matchedKeywords.join(', ')}].` };
 
+      // Guaranteed stricter reads
       const isBull = bullScore > bearScore;
-      // High score means global crisis or peace.
-      const rawConfidence = 60 + Math.abs(bullScore - bearScore) * 8;
-      const confidence = Math.min(97, rawConfidence);
+      let rawConfidence = 65 + Math.abs(bullScore - bearScore) * 8;
+      
+      // If Trump is trying to verbally manipulate, it creates extreme short-term volatility.
+      // We push confidence heavily if he aligns with a direction, as retail traders will blind-follow.
+      if (trumpManipulation) rawConfidence += 15;
+
+      const confidence = Math.min(99, rawConfidence);
       const direction = isBull ? 'buy' : 'sell';
       
       return {
         signal: direction,
         confidence: Math.round(confidence),
-        reason: `MACRO SENTIMENT ALARM: ${direction === 'buy' ? 'Bullish risk-off bias (Fear/Stimulus)' : 'Bearish risk-on bias (Peace/Rate hikes)'} detected. Key triggers found: [${matchedKeywords.join(', ')}].`
+        reason: `FULL MARKET READ: ${direction === 'buy' ? 'Heavy Risk-Off (Geopolitics/Fear)' : 'Heavy Risk-On (Peace/Hawkish)'} detected.${trumpManipulation ? ' TRUMP VERBAL INTERVENTION DETECTED.' : ''} Triggers: [${matchedKeywords.join(', ')}].`
       };
     }
   }
@@ -693,16 +832,34 @@ export function aggregateSignals(results) {
   const countRatio = dirCount / totalSignals;
   const finalConfidence = Math.round((rawConfidence * 0.7 + countRatio * 100 * 0.3));
 
-  const THRESHOLD = 75;
-  let finalSignal;
+  const THRESHOLD = 87; // Extreme strictness to stop losses
+  let finalSignal = 'NO TRADE';
   let riskLevel = 'None';
-  if (finalConfidence >= THRESHOLD) {
+  let vetoReason = '';
+
+  // ─── MASTER VETO SYSTEM (Capital Protection) ─────────────────────────────────
+  const mtf = results.find(r => r.id === 'multi_timeframe');
+  const whale = results.find(r => r.id === 'whale_tracker');
+  const adx = results.find(r => r.id === 'adx');
+
+  if (topSignal !== 'neutral') {
+    if (mtf && mtf.signal !== 'neutral' && mtf.signal !== topSignal) {
+      vetoReason = `VETO: Signal (${topSignal}) contradicts macroscopic Higher Timeframe trend (${mtf.signal}). Trade blocked to prevent chop loss.`;
+    } 
+    else if (whale && whale.confidence >= 80 && whale.signal !== 'neutral' && whale.signal !== topSignal) {
+      vetoReason = `VETO: Signal (${topSignal}) contradicts Institutional Smart Money (${whale.signal}). Do not trade against whales.`;
+    }
+    else if (adx && adx.signal === 'neutral' && finalConfidence < 92) {
+      vetoReason = `VETO: ADX indicates sideways/chop market. Trade blocked unless confidence is overwhelming (92+).`;
+    }
+  }
+
+  if (finalConfidence >= THRESHOLD && !vetoReason) {
     finalSignal = topSignal.toUpperCase();
-    if (finalConfidence >= 90) riskLevel = 'No Risk';
-    else if (finalConfidence >= 85) riskLevel = 'Controllable Risk';
-    else if (finalConfidence >= 80) riskLevel = 'Medium Risk';
-    else riskLevel = 'High Risk';
-  } else {
+    if (finalConfidence >= 92) riskLevel = 'No Risk';
+    else if (finalConfidence >= 89) riskLevel = 'Controllable Risk';
+    else riskLevel = 'Medium Risk';
+  } else if (finalConfidence >= THRESHOLD && vetoReason) {
     finalSignal = 'NO TRADE';
   }
 
@@ -725,8 +882,10 @@ export function aggregateSignals(results) {
     sellScore: Math.round(sellScore * 100),
     marketStatus,
     threshold: THRESHOLD,
-    thresholdMet: finalConfidence >= THRESHOLD,
+    thresholdMet: finalConfidence >= THRESHOLD && !vetoReason,
     riskLevel,
+    vetoReason,
     breakdown: `${buyCount} buy / ${sellCount} sell / ${neutralCount} neutral out of ${totalSignals} strategies`,
   };
 }
+

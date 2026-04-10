@@ -8,8 +8,7 @@ import './style.css';
 import { initChart, updateChart, updateChartData, addSignalMarker } from './components/chart.js';
 import { fetchCandles, fetchLivePrice, addSyntheticTick, PAIRS, INTERVALS } from './data/marketData.js';
 import { runAllStrategies, aggregateSignals, strategyContext } from './strategies/strategies.js';
-import { runBacktest, computeRiskParams } from './data/backtest.js';
-import { logSignal, getLogs, clearLogs, exportLogs } from './data/signalLogger.js';
+import { computeRiskParams } from './data/backtest.js';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 const state = {
@@ -73,12 +72,8 @@ document.getElementById('app').innerHTML = `
     </div>
   </header>
 
-  <div class="tab-bar">
-    <button class="tab-btn active" data-tab="dashboard">📡 Signal</button>
-    <button class="tab-btn" data-tab="backtest">📈 Backtest</button>
-    <button class="tab-btn" data-tab="trades">🤖 Live Trades</button>
-    <button class="tab-btn" data-tab="logs">📋 Logs</button>
-  </div>
+    </div>
+  </header>
 
   <div class="main-layout">
 
@@ -227,94 +222,8 @@ document.getElementById('app').innerHTML = `
       </div>
     </div>
 
-    <!-- ═══ BACKTEST ════════════════════════════════════════════════════════ -->
-    <div class="panel" id="panel-backtest">
-      <div class="backtest-layout">
-        <div class="backtest-sidebar">
-          <div class="backtest-controls">
-            <h3 class="bt-title">Backtest Configuration</h3>
-            <div class="form-group">
-              <label class="form-label">Asset</label>
-              <select class="form-input" id="bt-pair">
-                ${PAIRS.map(p => `<option>${p}</option>`).join('')}
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Timeframe</label>
-              <select class="form-input" id="bt-interval">
-                ${INTERVALS.map(i => `<option value="${i.value}">${i.label}</option>`).join('')}
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Candles</label>
-              <input class="form-input" id="bt-candles" type="number" value="300" min="100" max="5000" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Account Balance</label>
-              <input class="form-input" type="text" value="$150 USD (Fixed)" disabled style="background:var(--bg-lighter);cursor:not-allowed;color:var(--text-muted);" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Risk Per Trade (%)</label>
-              <input class="form-input" id="bt-risk" type="number" value="1.0" step="0.5" min="0.1" max="100" />
-            </div>
-            <button class="btn btn-primary" id="bt-run-btn" style="width:100%;justify-content:center;margin-top:4px">▶ Run Backtest</button>
-          </div>
-          <div class="bt-stats-grid" id="bt-stats-grid">
-            <div class="empty-state"><div class="empty-icon">📊</div><div class="empty-text">No results yet</div></div>
-          </div>
-        </div>
-        <div class="backtest-main" id="backtest-main">
-          <div class="empty-state" style="padding-top:80px">
-            <div class="empty-icon">📈</div>
-            <div class="empty-text">Configure and run a backtest</div>
-            <div class="empty-sub">Results include equity curve, per-strategy stats, and trade log</div>
-          </div>
-        </div>
       </div>
     </div>
-
-    <!-- ═══ LOGS ════════════════════════════════════════════════════════════ -->
-    <div class="panel" id="panel-logs">
-      <div class="logs-toolbar">
-        <div class="logs-count" id="logs-count">0 signals logged</div>
-        <button class="btn" id="export-logs-btn" style="margin-left:auto">⬇ Export CSV</button>
-        <button class="btn btn-danger" id="clear-logs-btn">🗑 Clear</button>
-      </div>
-      <div class="logs-list" id="logs-list">
-        <div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">No signals yet</div></div>
-      </div>
-    </div>
-
-    <!-- ═══ LIVE TRADES (24/7 Paper Bot) ════════════════════════════════════ -->
-    <div class="panel" id="panel-trades">
-      <div style="padding:20px;max-width:900px;margin:0 auto">
-
-        <!-- Stats Row -->
-        <div class="bt-stats-grid" id="trades-stats-grid">
-          <div class="bt-stat-card"><div class="bt-stat-label">Starting Balance</div><div class="bt-stat-value blue">$150</div><div class="bt-stat-sub">Fixed paper account</div></div>
-          <div class="bt-stat-card"><div class="bt-stat-label">Current Equity</div><div class="bt-stat-value green" id="trades-equity">$150</div><div class="bt-stat-sub" id="trades-pnl-sub">+$0.00</div></div>
-          <div class="bt-stat-card"><div class="bt-stat-label">Win Rate</div><div class="bt-stat-value" id="trades-winrate">—</div><div class="bt-stat-sub" id="trades-wl">0W / 0L</div></div>
-          <div class="bt-stat-card"><div class="bt-stat-label">Total Trades</div><div class="bt-stat-value blue" id="trades-total">0</div><div class="bt-stat-sub">Closed positions</div></div>
-        </div>
-
-        <!-- Open Trade -->
-        <div class="section-title" style="margin-top:20px">🟢 Currently Open Trade</div>
-        <div id="trades-open-wrap">
-          <div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">No open trade — bot scanning every 60s</div></div>
-        </div>
-
-        <!-- Closed Trades -->
-        <div class="section-title" style="margin-top:20px">📋 Closed Trade History</div>
-        <div id="trades-closed-list">
-          <div class="empty-state"><div class="empty-icon">🤖</div><div class="empty-text">No trades closed yet — waiting for 95% signal</div></div>
-        </div>
-
-        <div style="margin-top:20px;background:var(--bg-card);border:1px solid var(--bg-border);border-radius:var(--radius-md);padding:14px;font-size:11px;color:var(--text-secondary);line-height:1.7">
-          <strong style="color:var(--accent-amber)">⚠️ Paper Trading:</strong> All trades are virtual. No real money is at risk. The bot runs 24/7 in the background and automatically enters/exits positions based on live TradingView data.
-        </div>
-      </div>
-    </div>
-
   </div>
 
   <!-- THE LIVE SIGNAL POPUP / FLOATING NOTIFICATION -->
@@ -346,19 +255,7 @@ setTimeout(async () => {
   }
 }, 300);
 
-// ─── Tab Navigation ───────────────────────────────────────────────────────────
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const tab = btn.dataset.tab;
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById(`panel-${tab}`).classList.add('active');
-    state.activeTab = tab;
-    if (tab === 'logs') renderLogs();
-    if (tab === 'trades') fetchAndRenderTrades();
-  });
-});
+// ─── No Tab Navigation needed for single page Layout ─────────────
 
 // ─── Asset Tab Switching ──────────────────────────────────────────────────────
 document.getElementById('asset-tabs').addEventListener('click', e => {
@@ -519,19 +416,6 @@ function runAnalysis() {
       }).catch(e => console.warn("Telegram dispatch failed", e));
     }
   }
-
-  // Log
-  logSignal({
-    pair: state.pair,
-    timeframe: state.interval,
-    signal: agg.finalSignal,
-    confidence: agg.finalConfidence,
-    buyCount: agg.buyCount,
-    sellCount: agg.sellCount,
-    neutralCount: agg.neutralCount,
-    marketStatus: agg.marketStatus,
-    ...(state.riskParams || {})
-  });
 
   renderSignal(agg);
   renderRisk(state.riskParams, agg);
