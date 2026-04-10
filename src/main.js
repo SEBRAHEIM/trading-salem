@@ -9,7 +9,7 @@ import { initChart, updateChart, updateChartData, addSignalMarker } from './comp
 import { fetchCandles, fetchLivePrice, addSyntheticTick, PAIRS, INTERVALS } from './data/marketData.js';
 import { runAllStrategies, aggregateSignals, strategyContext } from './strategies/strategies.js';
 import { computeRiskParams } from './data/backtest.js';
-import { parseWhalesCSV, whaleLevels } from './data/whales.js';
+import { parseWhalesCSV, fetchLiveWhalesAPI, whaleLevels } from './data/whales.js';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 const state = {
@@ -343,6 +343,11 @@ async function loadAndAnalyze() {
       .then(res => res.json())
       .then(data => { if (data.headlines) strategyContext.headlines = data.headlines; })
       .catch(e => console.warn('News engine unavailable', e));
+      
+    // Fetch live Unusual Whales Options flow asynchronously if not manually loaded
+    if (!whaleLevels.active) {
+      fetchLiveWhalesAPI(state.pair).catch(e => console.warn('Whales API unavailable', e));
+    }
 
     const candles = await fetchCandles(state.pair, state.interval, 300, state.apiKey || '');
     state.candles = candles;
