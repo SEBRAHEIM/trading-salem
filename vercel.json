@@ -1,8 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/cron-whales",
-      "schedule": "*/30 * * * *"
+      "path": "/api/cron-weekly-report",
+      "schedule": "0 22 * * 5"
     }
   ],
   "rewrites": [

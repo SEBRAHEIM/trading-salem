@@ -181,18 +181,25 @@ setInterval(async () => {
 
           paperState.equity = +(paperState.equity + pnl).toFixed(2);
 
+          // Calculate pips (Gold: 1 pip = $0.1, so diff × 10)
+          const pipScale = t.entry > 1000 ? 10 : t.entry > 10 ? 10 : 10000;
+          const rawPips = t.direction === 'BUY'
+            ? (currentPrice - t.entry) * pipScale
+            : (t.entry - currentPrice) * pipScale;
+
           const closed_trade = {
             ...t,
             closeTime:  new Date().toISOString(),
             closePrice: currentPrice,
             result: closeTradeResult,
             pnl,
+            pips: +rawPips.toFixed(1),
             equity:     paperState.equity,
           };
           paperState.trades.push(closed_trade);
           paperState.openTrade = null;
 
-          console.log(`[BOT] Trade CLOSED — ${closeTradeResult} | PnL: $${pnl} | Equity: $${paperState.equity}`);
+          console.log(`[BOT] Trade CLOSED — ${closeTradeResult} | PnL: $${pnl} | Pips: ${rawPips.toFixed(1)} | Equity: $${paperState.equity}`);
         }
       }
 
@@ -311,18 +318,22 @@ export default defineConfig({
 
       // ── /api/trades — expose live paper trading state ────
       server.middlewares.use('/api/trades', (req, res) => {
-        const wins   = paperState.trades.filter(t => t.result === 'TP').length;
-        const losses = paperState.trades.filter(t => t.result === 'SL').length;
+        const tp1Hits  = paperState.trades.filter(t => t.result === 'TP1_Secured').length;
+        const tp2Hits  = paperState.trades.filter(t => t.result === 'TP2').length;
+        const slHits   = paperState.trades.filter(t => t.result === 'SL').length;
+        const wins     = tp1Hits + tp2Hits;
         const totalPnl = paperState.trades.reduce((s, t) => s + t.pnl, 0);
+        const totalPips = paperState.trades.reduce((s, t) => s + (t.pips || 0), 0);
         json(res, 200, {
           equity:    paperState.equity,
           start:     PAPER_BALANCE_START,
           open:      paperState.openTrade,
-          closed:    paperState.trades.slice(-50).reverse(), // last 50, newest first
-          wins,
-          losses,
+          closed:    paperState.trades.slice(-100).reverse(),
+          wins, losses: slHits,
+          tp1Hits, tp2Hits, slHits,
           totalTrades: paperState.trades.length,
           totalPnl:  +totalPnl.toFixed(2),
+          totalPips: +totalPips.toFixed(1),
           winRate:   paperState.trades.length > 0 ? +((wins / paperState.trades.length) * 100).toFixed(1) : 0,
         });
       });

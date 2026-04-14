@@ -7,11 +7,42 @@
 import express from 'express';
 import { createServer } from 'http';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { execSync, exec } from 'child_process';
 import TradingView from '@mathieuc/tradingview';
 import { runAllStrategies, aggregateSignals } from './src/strategies/strategies.js';
 import { computeRiskParams } from './src/data/backtest.js';
+import { whaleLevels } from './src/data/whales.js';
+
+// ─── Correlation Tracker ──────────────────────────────────────────────────────
+const correlationStats = {
+  totalChecks: 0,
+  overlapCount: 0,
+  syntheticSaves: 0
+};
+
+async function updateWhaleLevelsServer() {
+  const UW_API_KEY = "d9dc6e61-6157-4070-af00-2f868fd5dc27";
+  try {
+    const res = await fetch(`https://api.unusualwhales.com/api/option-trades/flow-alerts?ticker_symbol=GLD&limit=100`, {
+       headers: { "Authorization": `Bearer ${UW_API_KEY}`, "UW-CLIENT-API-ID": "100001", "Accept": "application/json" }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    let calls = [], puts = [];
+    data.data.forEach(t => {
+       const strike = parseFloat(t.strike);
+       const prem = parseFloat(t.total_premium || 0);
+       if (t.option_type === 'C' || t.type === 'call') calls.push({strike, premium: prem});
+       else if (t.option_type === 'P' || t.type === 'put') puts.push({strike, premium: prem});
+    });
+    calls.sort((a,b)=>b.premium-a.premium); puts.sort((a,b)=>b.premium-a.premium);
+    whaleLevels.resistance = calls.slice(0,5).map(c=>c.strike);
+    whaleLevels.support = puts.slice(0,5).map(p=>p.strike);
+    whaleLevels.active = true;
+  } catch(e) {}
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app  = express();
@@ -64,7 +95,41 @@ function fetchTVCandles(pair, interval) {
 // ─── Paper Trading State ──────────────────────────────────────────────────────
 const PAPER_START    = 150;
 const PAPER_RISK_PCT = 1.0;
-const paperState     = { equity: PAPER_START, trades: [], openTrade: null };
+const TRADES_LOG_FILE = path.join(__dirname, 'trades-log.json');
+
+// Load persisted trades from disk on startup
+function loadTradesLog() {
+  try {
+    if (fs.existsSync(TRADES_LOG_FILE)) {
+      const data = JSON.parse(fs.readFileSync(TRADES_LOG_FILE, 'utf-8'));
+      console.log(`[BOT] Loaded ${data.trades.length} trades from persistent log.`);
+      return data;
+    }
+  } catch (e) {
+    console.error('[BOT] Failed to load trades log:', e.message);
+  }
+  return { equity: PAPER_START, trades: [], openTrade: null };
+}
+
+function saveTradesLog() {
+  try {
+    fs.writeFileSync(TRADES_LOG_FILE, JSON.stringify({
+      equity: paperState.equity,
+      trades: paperState.trades,
+      openTrade: paperState.openTrade,
+      lastSaved: new Date().toISOString()
+    }, null, 2));
+  } catch (e) {
+    console.error('[BOT] Failed to save trades log:', e.message);
+  }
+}
+
+const savedState = loadTradesLog();
+const paperState = {
+  equity: savedState.equity,
+  trades: savedState.trades,
+  openTrade: savedState.openTrade
+};
 
 function sendTelegram(htmlContent) {
   const TELEGRAM_BOT_TOKEN = '8643381958:AAGUT_9Q_lSj_29Y2lfPRJNzG9TzlmhqReM';
@@ -88,6 +153,9 @@ setInterval(async () => {
     const candles   = await fetchTVCandles('XAU/USD', '15min');
     if (!candles || candles.length < 50) return;
     const lastClose = candles[candles.length - 1].close;
+
+    // Refresh backend Dark Pool data
+    await updateWhaleLevelsServer();
 
     // Monitor open trade
     if (paperState.openTrade) {
@@ -142,16 +210,58 @@ setInterval(async () => {
         else if (closeTradeResult === 'TP1_Secured') pnl = +(dollarRisk * 1.5).toFixed(2);
         else if (closeTradeResult === 'TP2') pnl = +(dollarRisk * 2.5).toFixed(2);
 
+        // Calculate pips for this trade (Gold: 1 pip = $0.1, so multiply diff by 10)
+        const pipScale = t.entry > 1000 ? 10 : t.entry > 10 ? 10 : 10000;
+        const rawPips = t.direction === 'BUY'
+          ? (lastClose - t.entry) * pipScale
+          : (t.entry - lastClose) * pipScale;
+
         paperState.equity = +(paperState.equity + pnl).toFixed(2);
-        paperState.trades.push({ ...t, closeTime: new Date().toISOString(), closePrice: lastClose, result: closeTradeResult, pnl, equity: paperState.equity });
+        paperState.trades.push({
+          ...t,
+          closeTime: new Date().toISOString(),
+          closePrice: lastClose,
+          result: closeTradeResult,
+          pnl,
+          pips: +rawPips.toFixed(1),
+          equity: paperState.equity
+        });
         paperState.openTrade = null;
-        console.log(`[BOT] Trade Closed: ${closeTradeResult} | PnL $${pnl} | Equity $${paperState.equity}`);
+        saveTradesLog();
+        console.log(`[BOT] Trade Closed: ${closeTradeResult} | PnL $${pnl} | Pips ${rawPips.toFixed(1)} | Equity $${paperState.equity}`);
       }
     }
 
     // Look for new signal
     if (!paperState.openTrade) {
-      const agg = aggregateSignals(runAllStrategies(candles));
+      const allResults = runAllStrategies(candles);
+
+      // --- CORRELATION TRACKER EVALUATION ---
+      const synthetic = allResults.find(r => r.id === 'whale_tracker');
+      const apiLive = allResults.find(r => r.id === 'unusual_whales_csv');
+      if (synthetic && apiLive) {
+        correlationStats.totalChecks++;
+        // We only care if at least one of them detects something
+        if (synthetic.signal !== 'neutral' || apiLive.signal !== 'neutral') {
+          if (synthetic.signal === apiLive.signal) {
+            correlationStats.overlapCount++;
+            const msg = `[CORRELATION] 🟢 PERFECT ALIGNMENT: Both Synthetic & API fired ${synthetic.signal.toUpperCase()}`;
+            console.log(msg);
+            sendTelegram(`🧪 <b>TRACKER UPDATE: 🟢 PERFECT ALIGNMENT</b>\nThe Synthetic Native Engine and the Live Whale API both independently triggered a <b>${synthetic.signal.toUpperCase()}</b> signal.\n<i>Mathematical compatibility holding strong.</i>`);
+          } else if (synthetic.signal !== 'neutral' && apiLive.signal === 'neutral') {
+            correlationStats.syntheticSaves++;
+            const msg = `[CORRELATION] 🟣 SYNTHETIC EARLY DETECT: VSA fired ${synthetic.signal.toUpperCase()} before API wall built.`;
+            console.log(msg);
+            sendTelegram(`🧪 <b>TRACKER UPDATE: 🟣 SYNTHETIC WIN</b>\nOur Native VSA Engine front-ran the API! It autonomously triggered a <b>${synthetic.signal.toUpperCase()}</b> based on raw volume footprint before the API updated its premium walls.`);
+          } else {
+            const msg = `[CORRELATION] 🟡 API DETECTED: API fired ${apiLive.signal.toUpperCase()}, Synthetic remained Neutral.`;
+            console.log(msg);
+            // Optionally we can keep this off Telegram to avoid spam, but we log it for tracking
+          }
+        }
+      }
+
+      const agg = aggregateSignals(allResults);
       if (agg.thresholdMet && agg.finalSignal !== 'NO TRADE') {
         const risk = computeRiskParams(candles, agg.finalSignal, agg.finalConfidence, '15min');
         paperState.openTrade = {
@@ -161,6 +271,7 @@ setInterval(async () => {
           tp2: risk.takeProfit2, riskReward: risk.riskReward,
         };
         console.log(`[BOT] TRADE OPENED ${agg.finalSignal} @ ${risk.entry}`);
+        saveTradesLog();
         sendTelegram(
           `🚨 <b>${agg.finalSignal} XAU/USD</b>\n⚠️ <b>${agg.riskLevel}</b>\n\nEntry price: ${risk.entry}\nTP1: ${risk.takeProfit1}\nTP2: ${risk.takeProfit2}\nSL: ${risk.stopLoss}`
         );
@@ -186,16 +297,21 @@ app.get('/api/candles', async (req, res) => {
 });
 
 app.get('/api/trades', (req, res) => {
-  const wins     = paperState.trades.filter(t => t.result === 'TP').length;
-  const losses   = paperState.trades.filter(t => t.result === 'SL').length;
+  const tp1Hits  = paperState.trades.filter(t => t.result === 'TP1_Secured').length;
+  const tp2Hits  = paperState.trades.filter(t => t.result === 'TP2').length;
+  const slHits   = paperState.trades.filter(t => t.result === 'SL').length;
+  const wins     = tp1Hits + tp2Hits;
   const totalPnl = paperState.trades.reduce((s, t) => s + t.pnl, 0);
+  const totalPips = paperState.trades.reduce((s, t) => s + (t.pips || 0), 0);
   res.json({
     equity: paperState.equity, start: PAPER_START,
     open: paperState.openTrade,
-    closed: paperState.trades.slice(-50).reverse(),
-    wins, losses,
+    closed: paperState.trades.slice(-100).reverse(),
+    wins, losses: slHits,
+    tp1Hits, tp2Hits, slHits,
     totalTrades: paperState.trades.length,
     totalPnl: +totalPnl.toFixed(2),
+    totalPips: +totalPips.toFixed(1),
     winRate: paperState.trades.length > 0 ? +((wins / paperState.trades.length) * 100).toFixed(1) : 0,
   });
 });

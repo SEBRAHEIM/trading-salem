@@ -1,7 +1,5 @@
 export default async function handler(req, res) {
   const UW_KEY = process.env.UW_API_KEY || "d9dc6e61-6157-4070-af00-2f868fd5dc27";
-  const BOT_TOKEN = "8643381958:AAGUT_9Q_lSj_29Y2lfPRJNzG9TzlmhqReM";
-  const CHAT_ID = "6732836566";
   const ticker = "GLD"; 
 
   const getAPI = async (path) => {
@@ -13,7 +11,7 @@ export default async function handler(req, res) {
   };
 
   try {
-    // Parallel Fetch All Data
+    // Parallel Fetch All Data — continues feeding the engine silently
     const [flowRes, tideRes, dpRes] = await Promise.all([
       getAPI(`/api/option-trades/flow-alerts?ticker_symbol=${ticker}&limit=100`),
       getAPI('/api/market/market-tide?interval_5m=false'),
@@ -33,60 +31,38 @@ export default async function handler(req, res) {
       calls.sort((a, b) => b.prem - a.prem);
       puts.sort((a, b) => b.prem - a.prem);
     }
-    const topCalls = calls.slice(0, 2).map(c => `$${c.strike} (${(c.prem/1000).toFixed(1)}k)`).join(' | ');
-    const topPuts = puts.slice(0, 2).map(p => `$${p.strike} (${(p.prem/1000).toFixed(1)}k)`).join(' | ');
 
-    // 2. Analyze Dark Pool (Find Largest Block)
+    // 2. Analyze Dark Pool
     let megaBlock = null;
     if (dpRes && dpRes.data) {
       megaBlock = dpRes.data.sort((a,b) => parseFloat(b.premium) - parseFloat(a.premium))[0];
     }
-    const dpText = megaBlock ? `$${megaBlock.price} block size: $${(parseFloat(megaBlock.premium)/1_000_000).toFixed(2)}M` : 'No major prints';
 
     // 3. Analyze Market Tide
-    let tideText = 'Neutral';
+    let tideSentiment = 'neutral';
     if (tideRes && tideRes.data && tideRes.data.length > 0) {
       const latest = tideRes.data[0];
       const np_c = parseFloat(latest.net_call_premium);
       const np_p = parseFloat(latest.net_put_premium);
-      if (np_c > Math.abs(np_p)) tideText = 'BULLISH 🟢 (Calls dominating)';
-      else if (Math.abs(np_p) > np_c) tideText = 'BEARISH 🔴 (Puts dominating)';
+      if (np_c > Math.abs(np_p)) tideSentiment = 'bullish';
+      else if (Math.abs(np_p) > np_c) tideSentiment = 'bearish';
     }
 
-    const syntheticAlignment = (Math.random() * (99 - 85) + 85).toFixed(1);
-
-    const message = `
-🤖 <b>SUPER-WHALE TRACKER (30m Interval)</b> 🤖
-<b>Asset:</b> ${ticker} (Proxy XAU/USD)
-
-🌊 <b>MARKET TIDE (MACRO SENTIMENT):</b>
-${tideText}
-
-⬛ <b>DARK POOL EXTREMES:</b>
-${dpText}
-
-📈 <b>Massive Call Walls (Resistance):</b>
-${topCalls || "None"}
-
-📉 <b>Massive Put Floors (Support):</b>
-${topPuts || "None"}
-
-🧠 <b>SYNTHETIC AI LEARNING:</b>
-Engine Alignment: ${syntheticAlignment}%
-<i>Fully connected to Periscope, Market Tide, and Dark Pools. Mathematical synthesis running safely.</i>
-    `.trim();
-
-    // Send to Telegram
-    const tgUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-    await fetch(tgUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: CHAT_ID, text: message, parse_mode: 'HTML' })
+    // Return data as JSON (NO Telegram spam)
+    // The engine reads this data silently to fuel the veto system
+    res.status(200).json({
+      ok: true,
+      silent: true,
+      ticker,
+      tideSentiment,
+      topCalls: calls.slice(0, 5).map(c => ({ strike: c.strike, premium: c.prem })),
+      topPuts: puts.slice(0, 5).map(p => ({ strike: p.strike, premium: p.prem })),
+      darkPool: megaBlock ? { price: megaBlock.price, premium: megaBlock.premium } : null,
+      timestamp: new Date().toISOString()
     });
-
-    res.status(200).json({ ok: true, message: "Super Summary sent." });
   } catch (error) {
-    console.error("Cron Error", error);
+    console.error("Whale Engine Error", error);
     res.status(500).json({ error: error.message });
   }
 }
+
