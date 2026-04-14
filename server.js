@@ -236,27 +236,20 @@ setInterval(async () => {
     if (!paperState.openTrade) {
       const allResults = runAllStrategies(candles);
 
-      // --- CORRELATION TRACKER EVALUATION ---
+      // --- CORRELATION TRACKER (silent — console only) ---
       const synthetic = allResults.find(r => r.id === 'whale_tracker');
       const apiLive = allResults.find(r => r.id === 'unusual_whales_csv');
       if (synthetic && apiLive) {
         correlationStats.totalChecks++;
-        // We only care if at least one of them detects something
         if (synthetic.signal !== 'neutral' || apiLive.signal !== 'neutral') {
           if (synthetic.signal === apiLive.signal) {
             correlationStats.overlapCount++;
-            const msg = `[CORRELATION] 🟢 PERFECT ALIGNMENT: Both Synthetic & API fired ${synthetic.signal.toUpperCase()}`;
-            console.log(msg);
-            sendTelegram(`🧪 <b>TRACKER UPDATE: 🟢 PERFECT ALIGNMENT</b>\nThe Synthetic Native Engine and the Live Whale API both independently triggered a <b>${synthetic.signal.toUpperCase()}</b> signal.\n<i>Mathematical compatibility holding strong.</i>`);
+            console.log(`[CORRELATION] 🟢 ALIGNMENT: Both fired ${synthetic.signal.toUpperCase()}`);
           } else if (synthetic.signal !== 'neutral' && apiLive.signal === 'neutral') {
             correlationStats.syntheticSaves++;
-            const msg = `[CORRELATION] 🟣 SYNTHETIC EARLY DETECT: VSA fired ${synthetic.signal.toUpperCase()} before API wall built.`;
-            console.log(msg);
-            sendTelegram(`🧪 <b>TRACKER UPDATE: 🟣 SYNTHETIC WIN</b>\nOur Native VSA Engine front-ran the API! It autonomously triggered a <b>${synthetic.signal.toUpperCase()}</b> based on raw volume footprint before the API updated its premium walls.`);
+            console.log(`[CORRELATION] 🟣 SYNTHETIC EARLY: VSA fired ${synthetic.signal.toUpperCase()} before API`);
           } else {
-            const msg = `[CORRELATION] 🟡 API DETECTED: API fired ${apiLive.signal.toUpperCase()}, Synthetic remained Neutral.`;
-            console.log(msg);
-            // Optionally we can keep this off Telegram to avoid spam, but we log it for tracking
+            console.log(`[CORRELATION] 🟡 API: ${apiLive.signal.toUpperCase()}, Synthetic neutral`);
           }
         }
       }
