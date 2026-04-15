@@ -1,10 +1,22 @@
 {
   "crons": [
     {
+      "path": "/api/cron-tick",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron-weekly-report",
       "schedule": "0 22 * * 5"
     }
   ],
+  "functions": {
+    "api/cron-tick.js": {
+      "maxDuration": 30
+    },
+    "api/candles.js": {
+      "maxDuration": 20
+    }
+  },
   "rewrites": [
     {
       "source": "/(.*)",

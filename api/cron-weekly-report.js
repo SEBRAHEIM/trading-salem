@@ -13,25 +13,26 @@ export default async function handler(req, res) {
   const CHAT_ID = "6732836566";
 
   try {
-    let tradesData = null;
-    
-    // Fetch trade data from Railway production server
+    // Load trade state from persistent store (jsonblob.com)
+    const STATE_URL = 'https://jsonblob.com/api/jsonBlob/019d91f2-8310-70ef-ac09-0414cd963daf';
+    let state = null;
     try {
-      const railwayUrl = process.env.RAILWAY_URL || 'https://trading-salem-production.up.railway.app';
-      const r = await fetch(`${railwayUrl}/api/trades`, { signal: AbortSignal.timeout(8000) });
-      if (r.ok) tradesData = await r.json();
+      const r = await fetch(STATE_URL, { headers: { 'Accept': 'application/json' }, signal: AbortSignal.timeout(8000) });
+      if (r.ok) state = await r.json();
     } catch(e) {
-      console.log("Could not reach Railway server:", e.message);
+      console.log("Could not load state:", e.message);
     }
 
-    if (!tradesData || !tradesData.closed) {
+    if (!state || !state.trades) {
       await tg(BOT_TOKEN, CHAT_ID, 
-        `📊 <b>WEEKLY REPORT</b>\n\n⚠️ Server unreachable. Report will retry next week.`
+        `📊 <b>WEEKLY REPORT</b>\n\n⚠️ No trade data available yet. Report will retry next week.`
       );
       return res.status(200).json({ ok: true, fallback: true });
     }
 
-    const { equity, start, closed } = tradesData;
+    const equity = state.equity || 150;
+    const start = 150;
+    const closed = state.trades || [];
     const now = new Date();
 
     // ── This Week's Trades ─────────────────────────────────────────────
