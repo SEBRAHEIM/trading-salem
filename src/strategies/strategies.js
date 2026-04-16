@@ -972,7 +972,6 @@ export function aggregateSignals(results, lastSignal = null) {
   // ─── MASTER VETO SYSTEM (Capital Protection) ─────────────────────────────────
   const mtf = results.find(r => r.id === 'multi_timeframe');
   const whale = results.find(r => r.id === 'whale_tracker');
-  const uwWhale = results.find(r => r.id === 'unusual_whales_csv');
   const smc = results.find(r => r.id === 'smc_order_blocks');
   const adx = results.find(r => r.id === 'adx');
 
