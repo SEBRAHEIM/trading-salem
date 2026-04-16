@@ -4,7 +4,10 @@
  * State persists via jsonblob.com (free, no auth).
  */
 const TELEGRAM_BOT_TOKEN = '8643381958:AAGUT_9Q_lSj_29Y2lfPRJNzG9TzlmhqReM';
-const TELEGRAM_CHAT_ID = '6732836566';
+const TELEGRAM_TARGETS = [
+  '6732836566',          // Personal DM
+  '-1003752467954'       // Group: @chatbotsallem
+];
 const UW_API_KEY = "d9dc6e61-6157-4070-af00-2f868fd5dc27";
 const PAPER_START = 150;
 const PAPER_RISK_PCT = 1.0;
@@ -32,11 +35,15 @@ async function saveState(state) {
 // ─── Telegram ────────────────────────────────────────────────────────────────
 async function sendTG(text) {
   try {
-    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text, parse_mode: 'HTML' })
-    });
+    await Promise.allSettled(
+      TELEGRAM_TARGETS.map(chat_id =>
+        fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id, text, parse_mode: 'HTML' })
+        })
+      )
+    );
   } catch (e) { console.error('[TG]', e.message); }
 }
 

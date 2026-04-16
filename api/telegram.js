@@ -11,28 +11,30 @@ export default async function handler(req, res) {
   if (!text) return res.status(400).json({ error: 'Missing text content' });
 
   const TELEGRAM_BOT_TOKEN = '8643381958:AAGUT_9Q_lSj_29Y2lfPRJNzG9TzlmhqReM';
-  const TELEGRAM_CHAT_ID = '6732836566';
+  const TELEGRAM_TARGETS = [
+    '6732836566',          // Personal DM
+    '-1003752467954'       // Group: @chatbotsallem
+  ];
   
   const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
   
   try {
-    const telegramRes = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: TELEGRAM_CHAT_ID,
-        text: text,
-        parse_mode: 'HTML'
-      })
-    });
+    const results = await Promise.allSettled(
+      TELEGRAM_TARGETS.map(chat_id =>
+        fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id, text, parse_mode: 'HTML' })
+        })
+      )
+    );
     
-    if (!telegramRes.ok) {
-      const err = await telegramRes.text();
-      console.error('Telegram API error:', err);
-      return res.status(500).json({ error: 'Failed to send to Telegram.', details: err });
+    const failed = results.filter(r => r.status === 'rejected');
+    if (failed.length === results.length) {
+      return res.status(500).json({ error: 'Failed to send to all Telegram targets.' });
     }
     
-    return res.status(200).json({ ok: true, msg: 'Sent to Telegram successfully' });
+    return res.status(200).json({ ok: true, msg: `Sent to ${results.length - failed.length}/${results.length} targets` });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

@@ -81,9 +81,9 @@ export async function fetchLiveWhalesAPI(ticker) {
       data.data.forEach(trade => {
         const strike = parseFloat(trade.strike);
         const prem = parseFloat(trade.total_premium || 0);
-        if (trade.option_type === 'C') {
+        if (trade.option_type === 'C' || trade.type === 'call') {
           calls.push({ strike, premium: prem });
-        } else if (trade.option_type === 'P') {
+        } else if (trade.option_type === 'P' || trade.type === 'put') {
           puts.push({ strike, premium: prem });
         }
       });

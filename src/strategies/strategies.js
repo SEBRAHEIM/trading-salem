@@ -947,7 +947,17 @@ export function aggregateSignals(results, lastSignal = null) {
   // Scale to 0-100 weighted by how many strategies agree
   const dirCount = topSignal === 'buy' ? buyCount : sellCount;
   const countRatio = dirCount / totalSignals;
-  const finalConfidence = Math.round((rawConfidence * 0.7 + countRatio * 100 * 0.3));
+  let finalConfidence = Math.round((rawConfidence * 0.7 + countRatio * 100 * 0.3));
+
+  // 🐳 WHALE SUPERCHARGE: If the Live Unusual Whales API specifically dictates a massive order block, we let it dominate!
+  const uwWhale = results.find(r => r.id === 'unusual_whales_csv');
+  if (uwWhale && uwWhale.signal !== 'neutral') {
+    if (uwWhale.signal === topSignal) {
+      // The Whale entirely agrees with the momentum! Supercharge the signal to guarantee an instant alert dispatch.
+      finalConfidence = Math.max(finalConfidence, 95); 
+    }
+    // If it disagrees, the Veto block below will catch it and kill the trade.
+  }
 
   // HYSTERESIS: Strict 80% to open, but allows buffering down to 75% to prevent signal drops from micro-noise
   let THRESHOLD = 80; 

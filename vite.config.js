@@ -89,26 +89,28 @@ const paperState = {
   openTrade: null,  // currently open virtual trade (one at a time)
 };
 
+const TELEGRAM_BOT_TOKEN_VT = '8643381958:AAGUT_9Q_lSj_29Y2lfPRJNzG9TzlmhqReM';
+const TELEGRAM_TARGETS_VT = [
+  '6732836566',          // Personal DM
+  '-1003752467954'       // Group: @chatbotsallem
+];
+
 function sendTelegram(htmlContent) {
-  const TELEGRAM_BOT_TOKEN = '8643381958:AAGUT_9Q_lSj_29Y2lfPRJNzG9TzlmhqReM';
-  const TELEGRAM_CHAT_ID = '6732836566';
-  const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+  const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN_VT}/sendMessage`;
   
-  fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      chat_id: TELEGRAM_CHAT_ID,
-      text: htmlContent,
-      parse_mode: 'HTML'
+  TELEGRAM_TARGETS_VT.forEach(chat_id => {
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id, text: htmlContent, parse_mode: 'HTML' })
     })
-  })
-  .then(res => res.json())
-  .then(data => {
-    if(!data.ok) console.error('[BOT] Telegram failed:', data);
-    else console.log('[BOT] Telegram sent successfully!');
-  })
-  .catch(err => console.error('[BOT] Telegram fetch error:', err.message));
+    .then(res => res.json())
+    .then(data => {
+      if(!data.ok) console.error(`[BOT] Telegram failed (${chat_id}):`, data);
+      else console.log(`[BOT] Telegram sent to ${chat_id}!`);
+    })
+    .catch(err => console.error(`[BOT] Telegram error (${chat_id}):`, err.message));
+  });
 }
 
 // Main bot tick — runs every 60 seconds
