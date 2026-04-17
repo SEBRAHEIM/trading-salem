@@ -479,7 +479,8 @@ function renderSignal(agg) {
 
   if (sig === 'BUY') subEl.textContent = `${agg.buyCount} of 22 strategies aligned — ${agg.riskLevel}`;
   else if (sig === 'SELL') subEl.textContent = `${agg.sellCount} of 22 strategies aligned — ${agg.riskLevel}`;
-  else subEl.textContent = `Only ${Math.max(agg.buyCount, agg.sellCount)} of 22 aligned — 80% threshold not met`;
+  else if (agg.vetoReason) subEl.textContent = `${Math.max(agg.buyCount, agg.sellCount)} of 22 aligned — BLOCKED BY VETO`;
+  else subEl.textContent = `Only ${Math.max(agg.buyCount, agg.sellCount)} of 22 aligned — ${agg.threshold || 80}% threshold not met`;
 
   // gauge
   const conf = agg.finalConfidence;
@@ -534,9 +535,16 @@ function renderReasoning(results, agg) {
     ? results.filter(r => r.signal === direction).sort((a, b) => b.weight * b.confidence - a.weight * a.confidence).slice(0, 5)
     : results.filter(r => r.signal === 'neutral').slice(0, 3);
 
-  const header = sig === 'NO TRADE'
-    ? `<div class="reasoning-alert amber">⚠️ ${agg.finalConfidence}% consensus — below 80% threshold. ${agg.buyCount} strategies bullish vs ${agg.sellCount} bearish. Waiting for stronger alignment.</div>`
-    : `<div class="reasoning-alert ${sig === 'BUY' ? 'green' : 'red'}">✅ ${sig} confirmed at ${agg.finalConfidence}% consensus (${agg.riskLevel}). ${direction === 'buy' ? agg.buyCount : agg.sellCount}/22 strategies agree.</div>`;
+  let header;
+  if (sig === 'NO TRADE') {
+    if (agg.vetoReason) {
+      header = `<div class="reasoning-alert amber">🛡️ ${agg.finalConfidence}% CONSENSUS — SIGNAL BLOCKED BY VETO. ${agg.buyCount} strategies bullish vs ${agg.sellCount} bearish.</div><div class="reasoning-alert amber" style="margin-top:6px">⚠️ ${agg.vetoReason}</div>`;
+    } else {
+      header = `<div class="reasoning-alert amber">⚠️ ${agg.finalConfidence}% consensus — below ${agg.threshold || 80}% threshold. ${agg.buyCount} strategies bullish vs ${agg.sellCount} bearish. Waiting for stronger alignment.</div>`;
+    }
+  } else {
+    header = `<div class="reasoning-alert ${sig === 'BUY' ? 'green' : 'red'}">✅ ${sig} confirmed at ${agg.finalConfidence}% consensus (${agg.riskLevel}). ${direction === 'buy' ? agg.buyCount : agg.sellCount}/22 strategies agree.</div>`;
+  }
 
   const bullets = supporting.map(r =>
     `<div class="reasoning-item"><span class="reasoning-name">${r.name}</span><span class="reasoning-text">${r.reason}</span></div>`
