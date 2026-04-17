@@ -52,7 +52,6 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'dist')));
 
 // ─── Shared helper ────────────────────────────────────────────────────────────
-const TRADING_PAIRS = ['XAU/USD', 'XTIUSD'];
 const TV_SYMBOLS  = { 'XAU/USD': 'OANDA:XAUUSD', 'XTIUSD': 'XTIUSD' };
 const TV_INTERVALS = { '1min':'1','5min':'5','15min':'15','30min':'30','1h':'60','4h':'240','1day':'D' };
 
@@ -104,33 +103,12 @@ function loadTradesLog() {
     if (fs.existsSync(TRADES_LOG_FILE)) {
       const data = JSON.parse(fs.readFileSync(TRADES_LOG_FILE, 'utf-8'));
       console.log(`[BOT] Loaded ${data.trades.length} trades from persistent log.`);
-      // Migrate old single-pair format → multi-pair
-      if (!data.pairs) {
-        return {
-          equity: data.equity ?? PAPER_START,
-          trades: data.trades ?? [],
-          pairs: {
-            'XAU/USD': { openTrade: data.openTrade || null, lastSignal: null },
-            'XTIUSD': { openTrade: null, lastSignal: null }
-          }
-        };
-      }
-      // Ensure all pairs exist
-      for (const p of TRADING_PAIRS) {
-        if (!data.pairs[p]) data.pairs[p] = { openTrade: null, lastSignal: null };
-      }
       return data;
     }
   } catch (e) {
     console.error('[BOT] Failed to load trades log:', e.message);
   }
-  return {
-    equity: PAPER_START, trades: [],
-    pairs: {
-      'XAU/USD': { openTrade: null, lastSignal: null },
-      'XTIUSD': { openTrade: null, lastSignal: null }
-    }
-  };
+  return { equity: PAPER_START, trades: [], openTrade: null, lastSignal: null, lastSignalTime: null };
 }
 
 function saveTradesLog() {
@@ -138,7 +116,9 @@ function saveTradesLog() {
     fs.writeFileSync(TRADES_LOG_FILE, JSON.stringify({
       equity: paperState.equity,
       trades: paperState.trades,
-      pairs: paperState.pairs,
+      openTrade: paperState.openTrade,
+      lastSignal: paperState.lastSignal,
+      lastSignalTime: paperState.lastSignalTime,
       lastSaved: new Date().toISOString()
     }, null, 2));
   } catch (e) {
@@ -150,7 +130,9 @@ const savedState = loadTradesLog();
 const paperState = {
   equity: savedState.equity,
   trades: savedState.trades,
-  pairs: savedState.pairs
+  openTrade: savedState.openTrade,
+  lastSignal: savedState.lastSignal || null,
+  lastSignalTime: savedState.lastSignalTime || null,
 };
 
 const TELEGRAM_BOT_TOKEN = '8643381958:AAGUT_9Q_lSj_29Y2lfPRJNzG9TzlmhqReM';
@@ -171,135 +153,137 @@ function sendTelegram(htmlContent) {
   });
 }
 
-// Bot tick every 60s — processes ALL pairs
+// Bot tick every 60s — XAU/USD only
 setInterval(async () => {
-  for (const pair of TRADING_PAIRS) {
-    try {
-      const candles = await fetchTVCandles(pair, '15min');
-      if (!candles || candles.length < 50) continue;
-      const lastClose = candles[candles.length - 1].close;
+  try {
+    const candles = await fetchTVCandles('XAU/USD', '15min');
+    if (!candles || candles.length < 50) return;
+    const lastClose = candles[candles.length - 1].close;
 
-      // Refresh backend Dark Pool data
-      await updateWhaleLevelsServer();
+    // Refresh backend Dark Pool data
+    await updateWhaleLevelsServer();
 
-      const pairState = paperState.pairs[pair];
+    // Monitor open trade
+    if (paperState.openTrade) {
+      const t = paperState.openTrade;
+      const isBuy = t.direction === 'BUY';
+      const dollarRisk = paperState.equity * (PAPER_RISK_PCT / 100);
+      let closeTradeResult = null;
 
-      // Monitor open trade for this pair
-      if (pairState.openTrade) {
-        const t = pairState.openTrade;
-        const isBuy = t.direction === 'BUY';
-        const dollarRisk = paperState.equity * (PAPER_RISK_PCT / 100);
-        let closeTradeResult = null;
-
-        if (isBuy) {
-          if (lastClose >= t.tp1 && !t.hitTp1) {
-            t.hitTp1 = true;
-            sendTelegram(`🟢 <b>TP1 DESTROYED!</b>\n\n<b>Asset:</b> ${pair}\n<b>Price:</b> ${lastClose}\n<b>Target 1:</b> ${t.tp1}`);
-          }
-          if (lastClose >= t.tp2 && !t.hitTp2 && t.hitTp1) {
-            t.hitTp2 = true;
-            sendTelegram(`🚀 <b>TP2 CRUSHED!</b>\n\n<b>Asset:</b> ${pair}\n<b>Price:</b> ${lastClose}\n<b>Target 2:</b> ${t.tp2}`);
-            closeTradeResult = 'TP2';
-          }
-          if (lastClose <= t.sl) {
-            if (t.hitTp1) {
-               sendTelegram(`⚠️ <b>Stopped out after hitting TP1!</b>\nIt doesn't matter, we already took our profit.\n\n<b>Asset:</b> ${pair}`);
-               closeTradeResult = 'TP1_Secured';
-            } else {
-               sendTelegram(`❌ <b>SL HIT!</b>\nWe will be back stronger.\n\n<b>Asset:</b> ${pair}\n<b>Entry:</b> ${t.entry}\n<b>SL:</b> ${t.sl}`);
-               closeTradeResult = 'SL';
-            }
-          }
-        } else { // SELL
-          if (lastClose <= t.tp1 && !t.hitTp1) {
-            t.hitTp1 = true;
-            sendTelegram(`🟢 <b>TP1 DESTROYED!</b>\n\n<b>Asset:</b> ${pair}\n<b>Price:</b> ${lastClose}\n<b>Target 1:</b> ${t.tp1}`);
-          }
-          if (lastClose <= t.tp2 && !t.hitTp2 && t.hitTp1) {
-            t.hitTp2 = true;
-            sendTelegram(`🚀 <b>TP2 CRUSHED!</b>\n\n<b>Asset:</b> ${pair}\n<b>Price:</b> ${lastClose}\n<b>Target 2:</b> ${t.tp2}`);
-            closeTradeResult = 'TP2';
-          }
-          if (lastClose >= t.sl) {
-            if (t.hitTp1) {
-               sendTelegram(`⚠️ <b>Stopped out after hitting TP1!</b>\nIt doesn't matter, we already took our profit.\n\n<b>Asset:</b> ${pair}`);
-               closeTradeResult = 'TP1_Secured';
-            } else {
-               sendTelegram(`❌ <b>SL HIT!</b>\nWe will be back stronger.\n\n<b>Asset:</b> ${pair}\n<b>Entry:</b> ${t.entry}\n<b>SL:</b> ${t.sl}`);
-               closeTradeResult = 'SL';
-            }
+      if (isBuy) {
+        if (lastClose >= t.tp1 && !t.hitTp1) {
+          t.hitTp1 = true;
+          sendTelegram(`🟢 <b>TP1 DESTROYED!</b>\n\n<b>Asset:</b> XAU/USD\n<b>Price:</b> ${lastClose}\n<b>Target 1:</b> ${t.tp1}`);
+        }
+        if (lastClose >= t.tp2 && !t.hitTp2 && t.hitTp1) {
+          t.hitTp2 = true;
+          sendTelegram(`🚀 <b>TP2 CRUSHED!</b>\n\n<b>Asset:</b> XAU/USD\n<b>Price:</b> ${lastClose}\n<b>Target 2:</b> ${t.tp2}`);
+          closeTradeResult = 'TP2';
+        }
+        if (lastClose <= t.sl) {
+          if (t.hitTp1) {
+             sendTelegram(`⚠️ <b>Stopped out after hitting TP1!</b>\nIt doesn't matter, we already took our profit.\n\n<b>Asset:</b> XAU/USD`);
+             closeTradeResult = 'TP1_Secured';
+          } else {
+             sendTelegram(`❌ <b>SL HIT!</b>\nWe will be back stronger.\n\n<b>Asset:</b> XAU/USD\n<b>Entry:</b> ${t.entry}\n<b>SL:</b> ${t.sl}`);
+             closeTradeResult = 'SL';
           }
         }
-
-        if (closeTradeResult) {
-          let pnl = 0;
-          if (closeTradeResult === 'SL') pnl = -dollarRisk;
-          else if (closeTradeResult === 'TP1_Secured') pnl = +(dollarRisk * 1.5).toFixed(2);
-          else if (closeTradeResult === 'TP2') pnl = +(dollarRisk * 2.5).toFixed(2);
-
-          // Calculate pips for this trade (Gold: 1 pip = $0.1, so multiply diff by 10)
-          const pipScale = t.entry > 1000 ? 10 : t.entry > 10 ? 10 : 10000;
-          const rawPips = t.direction === 'BUY'
-            ? (lastClose - t.entry) * pipScale
-            : (t.entry - lastClose) * pipScale;
-
-          paperState.equity = +(paperState.equity + pnl).toFixed(2);
-          paperState.trades.push({
-            ...t,
-            closeTime: new Date().toISOString(),
-            closePrice: lastClose,
-            result: closeTradeResult,
-            pnl,
-            pips: +rawPips.toFixed(1),
-            equity: paperState.equity
-          });
-          pairState.openTrade = null;
-          saveTradesLog();
-          console.log(`[BOT] [${pair}] Trade Closed: ${closeTradeResult} | PnL $${pnl} | Pips ${rawPips.toFixed(1)} | Equity $${paperState.equity}`);
+      } else { // SELL
+        if (lastClose <= t.tp1 && !t.hitTp1) {
+          t.hitTp1 = true;
+          sendTelegram(`🟢 <b>TP1 DESTROYED!</b>\n\n<b>Asset:</b> XAU/USD\n<b>Price:</b> ${lastClose}\n<b>Target 1:</b> ${t.tp1}`);
+        }
+        if (lastClose <= t.tp2 && !t.hitTp2 && t.hitTp1) {
+          t.hitTp2 = true;
+          sendTelegram(`🚀 <b>TP2 CRUSHED!</b>\n\n<b>Asset:</b> XAU/USD\n<b>Price:</b> ${lastClose}\n<b>Target 2:</b> ${t.tp2}`);
+          closeTradeResult = 'TP2';
+        }
+        if (lastClose >= t.sl) {
+          if (t.hitTp1) {
+             sendTelegram(`⚠️ <b>Stopped out after hitting TP1!</b>\nIt doesn't matter, we already took our profit.\n\n<b>Asset:</b> XAU/USD`);
+             closeTradeResult = 'TP1_Secured';
+          } else {
+             sendTelegram(`❌ <b>SL HIT!</b>\nWe will be back stronger.\n\n<b>Asset:</b> XAU/USD\n<b>Entry:</b> ${t.entry}\n<b>SL:</b> ${t.sl}`);
+             closeTradeResult = 'SL';
+          }
         }
       }
 
-      // Look for new signal for this pair
-      if (!pairState.openTrade) {
-        const allResults = runAllStrategies(candles);
+      if (closeTradeResult) {
+        let pnl = 0;
+        if (closeTradeResult === 'SL') pnl = -dollarRisk;
+        else if (closeTradeResult === 'TP1_Secured') pnl = +(dollarRisk * 1.5).toFixed(2);
+        else if (closeTradeResult === 'TP2') pnl = +(dollarRisk * 2.5).toFixed(2);
 
-        // --- CORRELATION TRACKER (silent — console only) ---
-        const synthetic = allResults.find(r => r.id === 'whale_tracker');
-        const apiLive = allResults.find(r => r.id === 'unusual_whales_csv');
-        if (synthetic && apiLive) {
-          correlationStats.totalChecks++;
-          if (synthetic.signal !== 'neutral' || apiLive.signal !== 'neutral') {
-            if (synthetic.signal === apiLive.signal) {
-              correlationStats.overlapCount++;
-              console.log(`[CORRELATION] [${pair}] 🟢 ALIGNMENT: Both fired ${synthetic.signal.toUpperCase()}`);
-            } else if (synthetic.signal !== 'neutral' && apiLive.signal === 'neutral') {
-              correlationStats.syntheticSaves++;
-              console.log(`[CORRELATION] [${pair}] 🟣 SYNTHETIC EARLY: VSA fired ${synthetic.signal.toUpperCase()} before API`);
-            } else {
-              console.log(`[CORRELATION] [${pair}] 🟡 API: ${apiLive.signal.toUpperCase()}, Synthetic neutral`);
-            }
+        const pipScale = t.entry > 1000 ? 10 : t.entry > 10 ? 10 : 10000;
+        const rawPips = t.direction === 'BUY'
+          ? (lastClose - t.entry) * pipScale
+          : (t.entry - lastClose) * pipScale;
+
+        paperState.equity = +(paperState.equity + pnl).toFixed(2);
+        paperState.trades.push({
+          ...t,
+          closeTime: new Date().toISOString(),
+          closePrice: lastClose,
+          result: closeTradeResult,
+          pnl,
+          pips: +rawPips.toFixed(1),
+          equity: paperState.equity
+        });
+        paperState.openTrade = null;
+        paperState.lastSignalTime = null; // Reset cooldown after trade closes
+        saveTradesLog();
+        console.log(`[BOT] Trade Closed: ${closeTradeResult} | PnL $${pnl} | Pips ${rawPips.toFixed(1)} | Equity $${paperState.equity}`);
+      }
+    }
+
+    // Look for new signal
+    if (!paperState.openTrade) {
+      // COOLDOWN: prevent duplicate signals within 5 minutes
+      const COOLDOWN_MS = 5 * 60 * 1000;
+      const lastTime = paperState.lastSignalTime ? new Date(paperState.lastSignalTime).getTime() : 0;
+      if (Date.now() - lastTime < COOLDOWN_MS) return;
+
+      const allResults = runAllStrategies(candles);
+
+      // --- CORRELATION TRACKER (silent — console only) ---
+      const synthetic = allResults.find(r => r.id === 'whale_tracker');
+      const apiLive = allResults.find(r => r.id === 'unusual_whales_csv');
+      if (synthetic && apiLive) {
+        correlationStats.totalChecks++;
+        if (synthetic.signal !== 'neutral' || apiLive.signal !== 'neutral') {
+          if (synthetic.signal === apiLive.signal) {
+            correlationStats.overlapCount++;
+            console.log(`[CORRELATION] 🟢 ALIGNMENT: Both fired ${synthetic.signal.toUpperCase()}`);
+          } else if (synthetic.signal !== 'neutral' && apiLive.signal === 'neutral') {
+            correlationStats.syntheticSaves++;
+            console.log(`[CORRELATION] 🟣 SYNTHETIC EARLY: VSA fired ${synthetic.signal.toUpperCase()} before API`);
+          } else {
+            console.log(`[CORRELATION] 🟡 API: ${apiLive.signal.toUpperCase()}, Synthetic neutral`);
           }
         }
-
-        const agg = aggregateSignals(allResults, pairState.lastSignal);
-        if (agg.thresholdMet && agg.finalSignal !== 'NO TRADE') {
-          const risk = computeRiskParams(candles, agg.finalSignal, agg.finalConfidence, '15min');
-          pairState.openTrade = {
-            id: Date.now(), pair, direction: agg.finalSignal,
-            confidence: agg.finalConfidence, openTime: new Date().toISOString(),
-            entry: risk.entry, sl: risk.stopLoss, tp1: risk.takeProfit1,
-            tp2: risk.takeProfit2, riskReward: risk.riskReward,
-          };
-          pairState.lastSignal = agg.finalSignal;
-          console.log(`[BOT] [${pair}] TRADE OPENED ${agg.finalSignal} @ ${risk.entry}`);
-          saveTradesLog();
-          sendTelegram(
-            `🚨 <b>${agg.finalSignal} ${pair}</b>\n⚠️ <b>${agg.riskLevel}</b>\n\nEntry price: ${risk.entry}\nTP1: ${risk.takeProfit1}\nTP2: ${risk.takeProfit2}\nSL: ${risk.stopLoss}`
-          );
-        }
       }
-    } catch (err) { console.error(`[BOT] [${pair}] Tick error:`, err.message); }
-  }
+
+      const agg = aggregateSignals(allResults, paperState.lastSignal);
+      if (agg.thresholdMet && agg.finalSignal !== 'NO TRADE') {
+        const risk = computeRiskParams(candles, agg.finalSignal, agg.finalConfidence, '15min');
+        paperState.openTrade = {
+          id: Date.now(), pair: 'XAU/USD', direction: agg.finalSignal,
+          confidence: agg.finalConfidence, openTime: new Date().toISOString(),
+          entry: risk.entry, sl: risk.stopLoss, tp1: risk.takeProfit1,
+          tp2: risk.takeProfit2, riskReward: risk.riskReward,
+        };
+        paperState.lastSignal = agg.finalSignal;
+        paperState.lastSignalTime = new Date().toISOString();
+        console.log(`[BOT] TRADE OPENED ${agg.finalSignal} @ ${risk.entry}`);
+        saveTradesLog();
+        sendTelegram(
+          `🚨 <b>${agg.finalSignal} XAU/USD</b>\n⚠️ <b>${agg.riskLevel}</b>\n\nEntry price: ${risk.entry}\nTP1: ${risk.takeProfit1}\nTP2: ${risk.takeProfit2}\nSL: ${risk.stopLoss}`
+        );
+      }
+    }
+  } catch (err) { console.error('[BOT] Tick error:', err.message); }
 }, 60_000);
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
@@ -319,11 +303,6 @@ app.get('/api/candles', async (req, res) => {
 });
 
 app.get('/api/trades', (req, res) => {
-  // Collect open trades from all pairs
-  const allOpenTrades = TRADING_PAIRS
-    .map(p => paperState.pairs[p]?.openTrade)
-    .filter(Boolean);
-
   const tp1Hits  = paperState.trades.filter(t => t.result === 'TP1_Secured').length;
   const tp2Hits  = paperState.trades.filter(t => t.result === 'TP2').length;
   const slHits   = paperState.trades.filter(t => t.result === 'SL').length;
@@ -332,8 +311,7 @@ app.get('/api/trades', (req, res) => {
   const totalPips = paperState.trades.reduce((s, t) => s + (t.pips || 0), 0);
   res.json({
     equity: paperState.equity, start: PAPER_START,
-    open: allOpenTrades.length === 1 ? allOpenTrades[0] : null,
-    openTrades: allOpenTrades,
+    open: paperState.openTrade,
     closed: paperState.trades.slice(-100).reverse(),
     wins, losses: slHits,
     tp1Hits, tp2Hits, slHits,
