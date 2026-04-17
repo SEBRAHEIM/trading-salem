@@ -988,8 +988,8 @@ export function aggregateSignals(results, lastSignal = null) {
     else if (whale && whale.confidence >= 80 && whale.signal !== 'neutral' && whale.signal !== topSignal) {
       vetoReason = `VETO: Signal (${topSignal}) contradicts Institutional Smart Money (${whale.signal}). Do not trade against whales.`;
     }
-    else if (adx && adx.signal === 'neutral' && finalConfidence < 92) {
-      vetoReason = `VETO: ADX indicates sideways/chop market. Trade blocked unless confidence is overwhelming (92+).`;
+    else if (adx && adx.signal === 'neutral' && finalConfidence < 80) {
+      vetoReason = `VETO: ADX indicates sideways/chop market. Trade blocked unless confidence reaches threshold (80+).`;
     }
   }
 
