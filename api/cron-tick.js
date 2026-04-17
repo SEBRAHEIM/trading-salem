@@ -175,6 +175,13 @@ async function processPair(pair, candles, state, whaleData) {
 
   // ── Look for new signal ──
   if (!pairState.openTrade) {
+    // COOLDOWN: Skip if we sent a signal for this pair within the last 5 minutes
+    const COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+    const lastTime = pairState.lastSignalTime ? new Date(pairState.lastSignalTime).getTime() : 0;
+    if (Date.now() - lastTime < COOLDOWN_MS) {
+      return { stateChanged, lastClose }; // Still in cooldown, skip
+    }
+
     const allResults = runAllStrategies(candles);
     const agg = aggregateSignals(allResults, pairState.lastSignal);
 
@@ -187,6 +194,7 @@ async function processPair(pair, candles, state, whaleData) {
         tp2: risk.takeProfit2, riskReward: risk.riskReward,
       };
       pairState.lastSignal = agg.finalSignal;
+      pairState.lastSignalTime = new Date().toISOString(); // Track when signal was sent
       stateChanged = true;
 
       await sendTG(

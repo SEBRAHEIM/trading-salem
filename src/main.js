@@ -395,28 +395,14 @@ function runAnalysis() {
     ? computeRiskParams(state.candles, agg.finalSignal, agg.finalConfidence, state.interval)
     : null;
 
-  // Mark signal on chart and FIRE LIVE ALERT
+  // Mark signal on chart and FIRE LIVE ALERT (visual only — Telegram handled by backend cron)
   if (agg.thresholdMet && agg.finalSignal !== 'NO TRADE' && agg.finalSignal !== state.lastSignal) {
     addSignalMarker(state.candles[state.candles.length - 1], agg.finalSignal);
     state.lastSignal = agg.finalSignal;
     
-    // FIRE LIVE ALERT NOTIFICATION AND EMAIL
+    // Show visual popup alert only (NO Telegram — backend cron-tick handles that)
     if (state.riskParams) {
       showLiveAlert(state.pair, agg.finalSignal, state.riskParams);
-
-      // Dispatch Telegram notification via serverless proxy
-      const tgText = `🚨 <b>${agg.finalSignal} ${state.pair}</b>\n` +
-        `⚠️ <b>${agg.riskLevel}</b>\n\n` +
-        `Entry price: ${state.riskParams.entry}\n` +
-        `TP1: ${state.riskParams.takeProfit1}\n` +
-        `TP2: ${state.riskParams.takeProfit2}\n` +
-        `SL: ${state.riskParams.stopLoss}`;
-
-      fetch('/api/telegram', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: tgText })
-      }).catch(e => console.warn("Telegram dispatch failed", e));
     }
   }
 
