@@ -203,9 +203,9 @@ export function computeRiskParams(candles, signal, confidence, interval = '15min
   const riskReward = Math.abs(takeProfit2 - price) / actualSlDistance;
 
   const volatilityPct = (avgATR / price) * 100;
-  // Gold (>1000) and Oil (>50) have different pip scales
-  const pipScale = price > 1000 ? 10 : price > 10 ? 10 : 10000;
-  const dp = price > 100 ? 2 : 5;
+  // XAU/USD: 1 pip = $1.00 price movement (industry standard for spot gold)
+  const pipScale = 1;
+  const dp = 2;
 
   return {
     entry:       +price.toFixed(dp),

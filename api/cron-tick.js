@@ -111,30 +111,30 @@ export default async function handler(req, res) {
       if (isBuy) {
         if (lastClose >= t.tp1 && !t.hitTp1) {
           t.hitTp1 = true; stateChanged = true;
-          await sendTG(`🟢 <b>TP1 HIT!</b>\n\n<b>Asset:</b> XAU/USD\n<b>Price:</b> ${lastClose}\n<b>TP1:</b> ${t.tp1}\n<b>Entry:</b> ${t.entry}\n<b>Pips:</b> +${((lastClose - t.entry) * 10).toFixed(1)}`);
+          await sendTG(`🟢 <b>TP1 HIT!</b>\n\n<b>Asset:</b> XAU/USD\n<b>Price:</b> ${lastClose}\n<b>TP1:</b> ${t.tp1}\n<b>Entry:</b> ${t.entry}\n<b>Pips:</b> +${(lastClose - t.entry).toFixed(1)}`);
         }
         if (lastClose >= t.tp2 && !t.hitTp2 && t.hitTp1) {
           t.hitTp2 = true; closeResult = 'TP2';
-          await sendTG(`🚀 <b>TP2 CRUSHED!</b>\n\n<b>Asset:</b> XAU/USD\n<b>Price:</b> ${lastClose}\n<b>TP2:</b> ${t.tp2}\n<b>Entry:</b> ${t.entry}\n<b>Pips:</b> +${((lastClose - t.entry) * 10).toFixed(1)}`);
+          await sendTG(`🚀 <b>TP2 CRUSHED!</b>\n\n<b>Asset:</b> XAU/USD\n<b>Price:</b> ${lastClose}\n<b>TP2:</b> ${t.tp2}\n<b>Entry:</b> ${t.entry}\n<b>Pips:</b> +${(lastClose - t.entry).toFixed(1)}`);
         }
         if (lastClose <= t.sl) {
           closeResult = t.hitTp1 ? 'TP1_Secured' : 'SL';
           if (t.hitTp1) await sendTG(`⚠️ <b>Stopped after TP1</b>\nProfit secured.\n<b>Asset:</b> XAU/USD`);
-          else await sendTG(`❌ <b>SL HIT</b>\n\n<b>Asset:</b> XAU/USD\n<b>Entry:</b> ${t.entry}\n<b>SL:</b> ${t.sl}\n<b>Pips:</b> ${((lastClose - t.entry) * 10).toFixed(1)}`);
+          else await sendTG(`❌ <b>SL HIT</b>\n\n<b>Asset:</b> XAU/USD\n<b>Entry:</b> ${t.entry}\n<b>SL:</b> ${t.sl}\n<b>Pips:</b> ${(lastClose - t.entry).toFixed(1)}`);
         }
       } else { // SELL
         if (lastClose <= t.tp1 && !t.hitTp1) {
           t.hitTp1 = true; stateChanged = true;
-          await sendTG(`🟢 <b>TP1 HIT!</b>\n\n<b>Asset:</b> XAU/USD\n<b>Price:</b> ${lastClose}\n<b>TP1:</b> ${t.tp1}\n<b>Entry:</b> ${t.entry}\n<b>Pips:</b> +${((t.entry - lastClose) * 10).toFixed(1)}`);
+          await sendTG(`🟢 <b>TP1 HIT!</b>\n\n<b>Asset:</b> XAU/USD\n<b>Price:</b> ${lastClose}\n<b>TP1:</b> ${t.tp1}\n<b>Entry:</b> ${t.entry}\n<b>Pips:</b> +${(t.entry - lastClose).toFixed(1)}`);
         }
         if (lastClose <= t.tp2 && !t.hitTp2 && t.hitTp1) {
           t.hitTp2 = true; closeResult = 'TP2';
-          await sendTG(`🚀 <b>TP2 CRUSHED!</b>\n\n<b>Asset:</b> XAU/USD\n<b>Price:</b> ${lastClose}\n<b>TP2:</b> ${t.tp2}\n<b>Entry:</b> ${t.entry}\n<b>Pips:</b> +${((t.entry - lastClose) * 10).toFixed(1)}`);
+          await sendTG(`🚀 <b>TP2 CRUSHED!</b>\n\n<b>Asset:</b> XAU/USD\n<b>Price:</b> ${lastClose}\n<b>TP2:</b> ${t.tp2}\n<b>Entry:</b> ${t.entry}\n<b>Pips:</b> +${(t.entry - lastClose).toFixed(1)}`);
         }
         if (lastClose >= t.sl) {
           closeResult = t.hitTp1 ? 'TP1_Secured' : 'SL';
           if (t.hitTp1) await sendTG(`⚠️ <b>Stopped after TP1</b>\nProfit secured.\n<b>Asset:</b> XAU/USD`);
-          else await sendTG(`❌ <b>SL HIT</b>\n\n<b>Asset:</b> XAU/USD\n<b>Entry:</b> ${t.entry}\n<b>SL:</b> ${t.sl}\n<b>Pips:</b> ${((t.entry - lastClose) * 10).toFixed(1)}`);
+          else await sendTG(`❌ <b>SL HIT</b>\n\n<b>Asset:</b> XAU/USD\n<b>Entry:</b> ${t.entry}\n<b>SL:</b> ${t.sl}\n<b>Pips:</b> ${(t.entry - lastClose).toFixed(1)}`);
         }
       }
 
@@ -144,7 +144,7 @@ export default async function handler(req, res) {
         else if (closeResult === 'TP1_Secured') pnl = +(dollarRisk * 1.5).toFixed(2);
         else if (closeResult === 'TP2') pnl = +(dollarRisk * 2.5).toFixed(2);
 
-        const pipScale = t.entry > 1000 ? 10 : 10000;
+        const pipScale = 1; // XAU/USD: 1 pip = $1.00
         const rawPips = isBuy ? (lastClose - t.entry) * pipScale : (t.entry - lastClose) * pipScale;
 
         state.equity = +(state.equity + pnl).toFixed(2);
@@ -162,8 +162,8 @@ export default async function handler(req, res) {
 
     // 5. Look for new signal (only if no open trade)
     if (!state.openTrade) {
-      // COOLDOWN: prevent duplicate signals within 5 minutes
-      const COOLDOWN_MS = 5 * 60 * 1000;
+      // COOLDOWN: prevent duplicate signals within 10 minutes
+      const COOLDOWN_MS = 10 * 60 * 1000;
       const lastTime = state.lastSignalTime ? new Date(state.lastSignalTime).getTime() : 0;
       const inCooldown = Date.now() - lastTime < COOLDOWN_MS;
 

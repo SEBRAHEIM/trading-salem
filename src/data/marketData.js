@@ -9,7 +9,6 @@
 // TradingView widget symbols (Spot feeds)
 export const TV_SYMBOLS = {
   'XAU/USD': 'OANDA:XAUUSD',
-  'XTIUSD': 'XTIUSD',
 };
 
 // ─── Cache ────────────────────────────────────────────────────────────────────
@@ -70,7 +69,7 @@ export async function fetchCandles(pair, interval, count = 300, apiKey = '') {
   // TRUE FALLBACK: Synthetic data — but anchored to REAL current price
   // from TradingView's own quote so at least the price level is correct
   const liveQuote = await fetchLivePrice(pair);
-  const basePrice = liveQuote?.price ?? ({ 'XAU/USD': 4661.00, 'XTIUSD': 113.50 }[pair] ?? 4661.00);
+  const basePrice = liveQuote?.price ?? 3300.00;
 
   console.warn(`[MarketData] Using calibrated synthetic data @ real price $${basePrice}`);
   const synthetic = generateSyntheticCandles(pair, count, interval, basePrice);
@@ -80,8 +79,7 @@ export async function fetchCandles(pair, interval, count = 300, apiKey = '') {
 
 // ─── Synthetic candles anchored to a given base price ────────────────────────
 export function generateSyntheticCandles(pair = 'XAU/USD', count = 300, interval = '15min', basePrice = null) {
-  const defaultBase = { 'XAU/USD': 4661.00, 'XTIUSD': 113.50 }[pair] ?? 4661.00;
-  const startPrice  = basePrice ?? defaultBase;
+  const startPrice  = basePrice ?? 3300.00;
 
   const tfVolMult   = { '1min':1,'5min':2.2,'15min':4,'30min':6,'1h':9,'4h':18,'1day':35 }[interval] ?? 4;
   const volatility  = (startPrice > 1000 ? 0.8 : 0.18) * tfVolMult;
@@ -136,7 +134,7 @@ export function addSyntheticTick(candles) {
 }
 
 // ─── Exports ──────────────────────────────────────────────────────────────────
-export const PAIRS = ['XAU/USD', 'XTIUSD'];
+export const PAIRS = ['XAU/USD'];
 
 export const INTERVALS = [
   { value: '1min',  label: '1 Min'  },

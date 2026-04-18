@@ -216,7 +216,7 @@ setInterval(async () => {
         else if (closeTradeResult === 'TP1_Secured') pnl = +(dollarRisk * 1.5).toFixed(2);
         else if (closeTradeResult === 'TP2') pnl = +(dollarRisk * 2.5).toFixed(2);
 
-        const pipScale = t.entry > 1000 ? 10 : t.entry > 10 ? 10 : 10000;
+        const pipScale = 1; // XAU/USD: 1 pip = $1.00
         const rawPips = t.direction === 'BUY'
           ? (lastClose - t.entry) * pipScale
           : (t.entry - lastClose) * pipScale;
@@ -240,8 +240,8 @@ setInterval(async () => {
 
     // Look for new signal
     if (!paperState.openTrade) {
-      // COOLDOWN: prevent duplicate signals within 5 minutes
-      const COOLDOWN_MS = 5 * 60 * 1000;
+      // COOLDOWN: prevent duplicate signals within 10 minutes
+      const COOLDOWN_MS = 10 * 60 * 1000;
       const lastTime = paperState.lastSignalTime ? new Date(paperState.lastSignalTime).getTime() : 0;
       if (Date.now() - lastTime < COOLDOWN_MS) return;
 
