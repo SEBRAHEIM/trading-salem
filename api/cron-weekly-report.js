@@ -75,15 +75,16 @@ export default async function handler(req, res) {
         const day    = t.closeTime
           ? new Date(t.closeTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
           : '';
-        tradeLines += `${emoji} #${i + 1} <b>${dir}</b> @ ${entry} → ${close} | ${pips} pips | ${pnl} [${t.result}] ${day}\n`;
+        const label = t.result === 'SL' ? 'SL' : t.result === 'TP2' ? 'TP1 ✅ + TP2 🎁' : 'TP1 ✅';
+        tradeLines += `${emoji} #${i + 1} <b>${dir}</b> @ ${entry} → ${close} | ${pips} pips | ${pnl} [${label}] ${day}\n`;
       });
     }
 
-    // ── Week stats ───────────────────────────────────────────────────────
+    // ── Week stats (TP1 = win, TP2 = bonus) ────────────────────────────
     const wTP1     = weekTrades.filter(t => t.result === 'TP1_Secured').length;
-    const wTP2     = weekTrades.filter(t => t.result === 'TP2').length;
+    const wTP2     = weekTrades.filter(t => t.result === 'TP2').length; // bonus
     const wSL      = weekTrades.filter(t => t.result === 'SL').length;
-    const wWins    = wTP1 + wTP2;
+    const wWins    = wTP1 + wTP2; // both TP1 and TP2 are wins (TP2 includes TP1)
     const wPnl     = weekTrades.reduce((s, t) => s + (t.pnl  || 0), 0);
     const wPips    = weekTrades.reduce((s, t) => s + (t.pips || 0), 0);
     const wTotal   = weekTrades.length;
@@ -91,7 +92,7 @@ export default async function handler(req, res) {
 
     // ── Month stats ──────────────────────────────────────────────────────
     const mTP1     = monthTrades.filter(t => t.result === 'TP1_Secured').length;
-    const mTP2     = monthTrades.filter(t => t.result === 'TP2').length;
+    const mTP2     = monthTrades.filter(t => t.result === 'TP2').length; // bonus
     const mSL      = monthTrades.filter(t => t.result === 'SL').length;
     const mWins    = mTP1 + mTP2;
     const mPnl     = monthTrades.reduce((s, t) => s + (t.pnl  || 0), 0);
@@ -142,8 +143,8 @@ export default async function handler(req, res) {
 ━━━ 📋 <b>THIS WEEK'S TRADES (${wTotal})</b> ━━━
 ${tradeLines}
 <b>WEEK SUMMARY:</b>
-✅ Wins: ${wWins}  (TP1: ${wTP1} | TP2: ${wTP2})
-❌ Losses (SL): ${wSL}
+✅ TP1 Hit (Wins): ${wWins}  ${wTP2 > 0 ? `(+${wTP2} reached TP2 bonus 🎁)` : ''}
+❌ SL Hit (Losses): ${wSL}
 📊 Win Rate: ${wWinRate}%
 📍 Total Pips: ${wPips >= 0 ? '+' : ''}${wPips.toFixed(1)}
 💵 Week P&L: ${wPnl >= 0 ? '+' : ''}$${wPnl.toFixed(2)}
@@ -153,7 +154,7 @@ ${verdict}
 ━━━ 🔍 <b>SL ANALYSIS</b> ━━━
 ${slSection}
 ━━━ 📅 <b>${monthName} TOTAL</b> ━━━
-Trades: ${mTotal} | Wins: ${mWins} | SL: ${mSL}
+Trades: ${mTotal} | TP1 Wins: ${mWins} ${mTP2 > 0 ? `(+${mTP2} TP2 bonus 🎁)` : ''} | SL: ${mSL}
 Win Rate: ${mWinRate}% | Pips: ${mPips >= 0 ? '+' : ''}${mPips.toFixed(1)} | P&L: ${mPnl >= 0 ? '+' : ''}$${mPnl.toFixed(2)}
 
 ━━━ 💰 <b>ACCOUNT EQUITY</b> ━━━
