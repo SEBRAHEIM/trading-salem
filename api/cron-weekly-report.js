@@ -75,8 +75,8 @@ export default async function handler(req, res) {
         const day    = t.closeTime
           ? new Date(t.closeTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
           : '';
-        const label = t.result === 'SL' ? 'SL' : t.result === 'TP2' ? 'TP1 ✅ + TP2 🎁' : 'TP1 ✅';
-        tradeLines += `${emoji} #${i + 1} <b>${dir}</b> @ ${entry} → ${close} | ${pips} pips | ${pnl} [${label}] ${day}\n`;
+        const label = t.result === 'SL' ? '🔴 Stop Loss Hit' : t.result === 'TP2' ? '🟢 Target Hit + Bonus TP2 🎁' : '🟢 Target Hit';
+        tradeLines += `${emoji} #${i + 1} <b>${dir}</b> @ ${entry} | ${pips} pips | ${label} — ${day}\n`;
       });
     }
 
@@ -143,22 +143,20 @@ export default async function handler(req, res) {
 ━━━ 📋 <b>THIS WEEK'S TRADES (${wTotal})</b> ━━━
 ${tradeLines}
 <b>WEEK SUMMARY:</b>
-✅ TP1 Hit (Wins): ${wWins}  ${wTP2 > 0 ? `(+${wTP2} reached TP2 bonus 🎁)` : ''}
-❌ SL Hit (Losses): ${wSL}
+🟢 Target Hit: ${wWins}${wTP2 > 0 ? ` (+${wTP2} also hit TP2 bonus 🎁)` : ''}
+🔴 Stop Loss Hit: ${wSL}
 📊 Win Rate: ${wWinRate}%
 📍 Total Pips: ${wPips >= 0 ? '+' : ''}${wPips.toFixed(1)}
-💵 Week P&L: ${wPnl >= 0 ? '+' : ''}$${wPnl.toFixed(2)}
 
 ${verdict}
 
 ━━━ 🔍 <b>SL ANALYSIS</b> ━━━
 ${slSection}
 ━━━ 📅 <b>${monthName} TOTAL</b> ━━━
-Trades: ${mTotal} | TP1 Wins: ${mWins} ${mTP2 > 0 ? `(+${mTP2} TP2 bonus 🎁)` : ''} | SL: ${mSL}
-Win Rate: ${mWinRate}% | Pips: ${mPips >= 0 ? '+' : ''}${mPips.toFixed(1)} | P&L: ${mPnl >= 0 ? '+' : ''}$${mPnl.toFixed(2)}
+Trades: ${mTotal} | 🟢 Target Hit: ${mWins}${mTP2 > 0 ? ` (+${mTP2} TP2 🎁)` : ''} | 🔴 SL: ${mSL}
+Win Rate: ${mWinRate}% | Pips: ${mPips >= 0 ? '+' : ''}${mPips.toFixed(1)}
 
-━━━ 💰 <b>ACCOUNT EQUITY</b> ━━━
-${eqEmoji} $${PAPER_START} → $${equity} (${eqChange >= 0 ? '+' : ''}$${eqChange} / ${eqPct}%)
+
 
 <i>🐳 Whale engine monitoring 24/7. Next report: Friday.</i>`.trim();
 
