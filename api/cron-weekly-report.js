@@ -1,160 +1,178 @@
 /**
  * Weekly Performance Report — Vercel Cron
  * Fires every Friday at 10:00 PM UTC (after Forex market close)
- * 
- * Sends a comprehensive Telegram report:
+ *
+ * Sends a comprehensive Telegram report to BOTH personal DM and group:
  * - Every trade listed individually (entry, exit, result, pips)
  * - This week's summary
  * - Monthly running total (profits, losses, SL breakdown)
- * - SL analysis — what went wrong on losing trades
+ * - Whether the week was successful or not
  */
-export default async function handler(req, res) {
-  const BOT_TOKEN = "8643381958:AAGUT_9Q_lSj_29Y2lfPRJNzG9TzlmhqReM";
-  const CHAT_ID = "6732836566";
 
+const BOT_TOKEN    = "8643381958:AAGUT_9Q_lSj_29Y2lfPRJNzG9TzlmhqReM";
+const TG_TARGETS   = ["6732836566", "-1003752467954"]; // DM + Group @chatbotsallem
+const STATE_URL    = 'https://jsonblob.com/api/jsonBlob/019d9ab2-26ea-70d2-bc44-9a788ea20156';
+const PAPER_START  = 150;
+
+// ─── Send to ALL targets ──────────────────────────────────────────────────────
+async function sendTG(text) {
+  await Promise.allSettled(
+    TG_TARGETS.map(chat_id =>
+      fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id, text, parse_mode: 'HTML' })
+      })
+    )
+  );
+}
+
+export default async function handler(req, res) {
   try {
-    // Load trade state from persistent store (jsonblob.com)
-    const STATE_URL = 'https://jsonblob.com/api/jsonBlob/019d91f2-8310-70ef-ac09-0414cd963daf';
+    // ── Load trade state from jsonblob ──────────────────────────────────
     let state = null;
     try {
-      const r = await fetch(STATE_URL, { headers: { 'Accept': 'application/json' }, signal: AbortSignal.timeout(8000) });
+      const r = await fetch(STATE_URL, {
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(8000)
+      });
       if (r.ok) state = await r.json();
-    } catch(e) {
-      console.log("Could not load state:", e.message);
+    } catch (e) {
+      console.log("[WEEKLY] Could not load state:", e.message);
     }
 
-    if (!state || !state.trades) {
-      await tg(BOT_TOKEN, CHAT_ID, 
-        `📊 <b>WEEKLY REPORT</b>\n\n⚠️ No trade data available yet. Report will retry next week.`
-      );
+    // If no trades at all, send a short notice and exit
+    if (!state || !state.trades || state.trades.length === 0) {
+      await sendTG(`📊 <b>WEEKLY REPORT</b>\n\n⚠️ No trades recorded this week.\nThe bot is running — waiting for a valid signal above 80% consensus.`);
       return res.status(200).json({ ok: true, fallback: true });
     }
 
-    const equity = state.equity || 150;
-    const start = 150;
-    const closed = state.trades || [];
-    const now = new Date();
+    const equity  = state.equity  ?? PAPER_START;
+    const allTrades = state.trades ?? [];
+    const now     = new Date();
 
-    // ── This Week's Trades ─────────────────────────────────────────────
+    // ── Filter this week's trades (last 7 days) ─────────────────────────
     const weekStart = new Date(now);
     weekStart.setDate(now.getDate() - 7);
-    const weekTrades = closed.filter(t => new Date(t.closeTime) >= weekStart);
+    const weekTrades = allTrades.filter(t => t.closeTime && new Date(t.closeTime) >= weekStart);
 
-    // ── This Month's Trades ────────────────────────────────────────────
+    // ── Filter this month's trades ───────────────────────────────────────
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthTrades = closed.filter(t => new Date(t.closeTime) >= monthStart);
+    const monthTrades = allTrades.filter(t => t.closeTime && new Date(t.closeTime) >= monthStart);
 
-    // ── Build trade-by-trade list for this week ────────────────────────
-    let tradeList = '';
+    // ── Build per-trade list for the week ───────────────────────────────
+    let tradeLines = '';
     if (weekTrades.length === 0) {
-      tradeList = '🔇 No trades this week.\n';
+      tradeLines = '🔇 No closed trades this week.\n';
     } else {
       weekTrades.forEach((t, i) => {
-        const emoji = t.result === 'SL' ? '❌' : t.result === 'TP2' ? '🚀' : '🟢';
-        const dir = t.direction || '?';
-        const entry = t.entry || '?';
-        const close = t.closePrice || '?';
-        const pips = t.pips !== undefined ? `${t.pips >= 0 ? '+' : ''}${t.pips}` : '?';
-        const pnl = t.pnl !== undefined ? `${t.pnl >= 0 ? '+' : ''}$${t.pnl.toFixed(2)}` : '?';
-        const time = t.closeTime ? new Date(t.closeTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '';
-        tradeList += `${emoji} ${dir} @ ${entry} → ${close} | ${pips} pips | ${pnl} (${t.result}) ${time}\n`;
+        const emoji  = t.result === 'SL' ? '❌' : t.result === 'TP2' ? '🚀' : '🟢';
+        const dir    = t.direction || '?';
+        const entry  = t.entry    ?? '?';
+        const close  = t.closePrice ?? '?';
+        const pips   = t.pips !== undefined ? `${t.pips >= 0 ? '+' : ''}${t.pips}` : '?';
+        const pnl    = t.pnl  !== undefined ? `${t.pnl  >= 0 ? '+' : ''}$${t.pnl.toFixed(2)}` : '?';
+        const day    = t.closeTime
+          ? new Date(t.closeTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+          : '';
+        tradeLines += `${emoji} #${i + 1} <b>${dir}</b> @ ${entry} → ${close} | ${pips} pips | ${pnl} [${t.result}] ${day}\n`;
       });
     }
 
-    // ── Week stats ─────────────────────────────────────────────────────
-    const wTP1 = weekTrades.filter(t => t.result === 'TP1_Secured').length;
-    const wTP2 = weekTrades.filter(t => t.result === 'TP2').length;
-    const wSL = weekTrades.filter(t => t.result === 'SL').length;
-    const wWins = wTP1 + wTP2;
-    const wPnl = weekTrades.reduce((s, t) => s + (t.pnl || 0), 0);
-    const wPips = weekTrades.reduce((s, t) => s + (t.pips || 0), 0);
-    const wWinRate = weekTrades.length > 0 ? ((wWins / weekTrades.length) * 100).toFixed(0) : '0';
+    // ── Week stats ───────────────────────────────────────────────────────
+    const wTP1     = weekTrades.filter(t => t.result === 'TP1_Secured').length;
+    const wTP2     = weekTrades.filter(t => t.result === 'TP2').length;
+    const wSL      = weekTrades.filter(t => t.result === 'SL').length;
+    const wWins    = wTP1 + wTP2;
+    const wPnl     = weekTrades.reduce((s, t) => s + (t.pnl  || 0), 0);
+    const wPips    = weekTrades.reduce((s, t) => s + (t.pips || 0), 0);
+    const wTotal   = weekTrades.length;
+    const wWinRate = wTotal > 0 ? ((wWins / wTotal) * 100).toFixed(0) : '0';
 
-    // ── Month stats ────────────────────────────────────────────────────
-    const mTP1 = monthTrades.filter(t => t.result === 'TP1_Secured').length;
-    const mTP2 = monthTrades.filter(t => t.result === 'TP2').length;
-    const mSL = monthTrades.filter(t => t.result === 'SL').length;
-    const mWins = mTP1 + mTP2;
-    const mPnl = monthTrades.reduce((s, t) => s + (t.pnl || 0), 0);
-    const mPips = monthTrades.reduce((s, t) => s + (t.pips || 0), 0);
-    const mWinRate = monthTrades.length > 0 ? ((mWins / monthTrades.length) * 100).toFixed(0) : '0';
+    // ── Month stats ──────────────────────────────────────────────────────
+    const mTP1     = monthTrades.filter(t => t.result === 'TP1_Secured').length;
+    const mTP2     = monthTrades.filter(t => t.result === 'TP2').length;
+    const mSL      = monthTrades.filter(t => t.result === 'SL').length;
+    const mWins    = mTP1 + mTP2;
+    const mPnl     = monthTrades.reduce((s, t) => s + (t.pnl  || 0), 0);
+    const mPips    = monthTrades.reduce((s, t) => s + (t.pips || 0), 0);
+    const mTotal   = monthTrades.length;
+    const mWinRate = mTotal > 0 ? ((mWins / mTotal) * 100).toFixed(0) : '0';
     const monthName = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-    // ── SL Analysis — What went wrong ──────────────────────────────────
-    const slTrades = monthTrades.filter(t => t.result === 'SL');
-    let slAnalysis = '';
+    // ── Week verdict ─────────────────────────────────────────────────────
+    let verdict = '';
+    if (wTotal === 0) {
+      verdict = '📭 No trades — market had no valid entry signal this week.';
+    } else if (wPnl > 0 && parseInt(wWinRate) >= 60) {
+      verdict = `🏆 SUCCESSFUL WEEK! ${wWins}W / ${wSL}L — Engine performing well.`;
+    } else if (wPnl >= 0) {
+      verdict = `⚖️ BREAK-EVEN WEEK. ${wWins}W / ${wSL}L — Flat performance.`;
+    } else {
+      verdict = `📉 DIFFICULT WEEK. ${wWins}W / ${wSL}L — Will tighten filters.`;
+    }
+
+    // ── SL Analysis ──────────────────────────────────────────────────────
+    const slTrades = weekTrades.filter(t => t.result === 'SL');
+    let slSection = '';
     if (slTrades.length === 0) {
-      slAnalysis = '✅ Zero SL hits this month — perfect execution!\n';
+      slSection = '✅ Zero SL hits this week!\n';
     } else {
       const totalSlLoss = slTrades.reduce((s, t) => s + Math.abs(t.pnl || 0), 0);
-      const avgSlPips = slTrades.reduce((s, t) => s + Math.abs(t.pips || 0), 0) / slTrades.length;
-      slAnalysis += `Total SL losses: -$${totalSlLoss.toFixed(2)}\n`;
-      slAnalysis += `Avg pips per SL: ${avgSlPips.toFixed(1)} pips\n`;
+      const avgSlPips   = slTrades.reduce((s, t) => s + Math.abs(t.pips || 0), 0) / slTrades.length;
+      slSection += `SL hits: ${slTrades.length} | Total loss: -$${totalSlLoss.toFixed(2)} | Avg: ${avgSlPips.toFixed(1)} pips/SL\n`;
       slTrades.forEach(t => {
-        const time = t.closeTime ? new Date(t.closeTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
-        slAnalysis += `  ❌ ${t.direction} @ ${t.entry} → SL ${t.sl} (${t.pips} pips) ${time}\n`;
+        const day = t.closeTime
+          ? new Date(t.closeTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+          : '';
+        slSection += `  ❌ ${t.direction} @ ${t.entry} → SL hit @ ${t.closePrice} | ${t.pips} pips | ${day}\n`;
       });
     }
 
-    // ── Equity ──────────────────────────────────────────────────────────
-    const eqChange = equity - start;
-    const eqPct = ((eqChange / start) * 100).toFixed(1);
+    // ── Equity summary ───────────────────────────────────────────────────
+    const eqChange = +(equity - PAPER_START).toFixed(2);
+    const eqPct    = ((eqChange / PAPER_START) * 100).toFixed(1);
+    const eqEmoji  = eqChange >= 0 ? '📈' : '📉';
 
-    // ── Compose the message ────────────────────────────────────────────
-    const message = `
-📊 <b>WEEKLY REPORT</b> 📊
-<b>${now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</b>
+    // ── Compose message ──────────────────────────────────────────────────
+    const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    const msg = `📊 <b>WEEKLY REPORT — XAU/USD</b>
+<b>${dateStr}</b>
 
-━━━ 📋 <b>TRADES THIS WEEK</b> ━━━
-${tradeList}
-<b>Week Summary:</b>
-✅ Wins: ${wWins} (TP1: ${wTP1}, TP2: ${wTP2})
-❌ SL: ${wSL}
-Win Rate: ${wWinRate}%
-Pips: ${wPips >= 0 ? '+' : ''}${wPips.toFixed(1)}
-P&L: ${wPnl >= 0 ? '+' : ''}$${wPnl.toFixed(2)}
+━━━ 📋 <b>THIS WEEK'S TRADES (${wTotal})</b> ━━━
+${tradeLines}
+<b>WEEK SUMMARY:</b>
+✅ Wins: ${wWins}  (TP1: ${wTP1} | TP2: ${wTP2})
+❌ Losses (SL): ${wSL}
+📊 Win Rate: ${wWinRate}%
+📍 Total Pips: ${wPips >= 0 ? '+' : ''}${wPips.toFixed(1)}
+💵 Week P&L: ${wPnl >= 0 ? '+' : ''}$${wPnl.toFixed(2)}
 
-━━━ 📅 <b>${monthName} TOTAL</b> ━━━
-Trades: ${monthTrades.length}
-✅ Wins: ${mWins} (TP1: ${mTP1}, TP2: ${mTP2})
-❌ SL: ${mSL}
-Win Rate: ${mWinRate}%
-Pips: ${mPips >= 0 ? '+' : ''}${mPips.toFixed(1)}
-P&L: ${mPnl >= 0 ? '+' : ''}$${mPnl.toFixed(2)}
+${verdict}
 
 ━━━ 🔍 <b>SL ANALYSIS</b> ━━━
-${slAnalysis}
-━━━ 💰 <b>EQUITY</b> ━━━
-Start: $${start} → Now: $${equity}
-Change: ${eqChange >= 0 ? '+' : ''}$${eqChange.toFixed(2)} (${eqPct}%)
+${slSection}
+━━━ 📅 <b>${monthName} TOTAL</b> ━━━
+Trades: ${mTotal} | Wins: ${mWins} | SL: ${mSL}
+Win Rate: ${mWinRate}% | Pips: ${mPips >= 0 ? '+' : ''}${mPips.toFixed(1)} | P&L: ${mPnl >= 0 ? '+' : ''}$${mPnl.toFixed(2)}
 
-<i>🐳 Whale engine running silently 24/7.
-Next report: Next Friday.</i>
-    `.trim();
+━━━ 💰 <b>ACCOUNT EQUITY</b> ━━━
+${eqEmoji} $${PAPER_START} → $${equity} (${eqChange >= 0 ? '+' : ''}$${eqChange} / ${eqPct}%)
 
-    // Telegram has a 4096 char limit — split if needed
-    if (message.length <= 4000) {
-      await tg(BOT_TOKEN, CHAT_ID, message);
+<i>🐳 Whale engine monitoring 24/7. Next report: Friday.</i>`.trim();
+
+    // ── Send (split if >4000 chars) ──────────────────────────────────────
+    if (msg.length <= 4000) {
+      await sendTG(msg);
     } else {
-      // Split into two messages
-      const half = message.indexOf('━━━ 📅');
-      await tg(BOT_TOKEN, CHAT_ID, message.substring(0, half).trim());
-      await tg(BOT_TOKEN, CHAT_ID, message.substring(half).trim());
+      const splitIdx = msg.indexOf('━━━ 🔍');
+      await sendTG(msg.substring(0, splitIdx).trim());
+      await sendTG(msg.substring(splitIdx).trim());
     }
 
-    res.status(200).json({ ok: true, weekTrades: weekTrades.length, monthTrades: monthTrades.length });
-  } catch (error) {
-    console.error("Weekly Report Error:", error);
-    res.status(500).json({ error: error.message });
+    return res.status(200).json({ ok: true, weekTrades: wTotal, monthTrades: mTotal });
+  } catch (err) {
+    console.error("[WEEKLY] Error:", err);
+    return res.status(500).json({ error: err.message });
   }
-}
-
-async function tg(botToken, chatId, text) {
-  const r = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' })
-  });
-  const data = await r.json();
-  if (!data.ok) console.error("Telegram error:", data);
 }
