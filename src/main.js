@@ -233,7 +233,7 @@ document.getElementById('app').innerHTML = `
         <span class="perf-icon">📊</span>
         <div>
           <div class="perf-title">Backtest Performance Report</div>
-          <div class="perf-subtitle">Walk-forward simulation · Feb–May 2026 · XAU/USD 15m</div>
+          <div class="perf-subtitle">Live performance tracking · Started May 2026 · XAU/USD 15m · $150 capital</div>
         </div>
       </div>
       <button class="perf-refresh-btn" id="perf-refresh-btn">↺ Refresh</button>
@@ -254,9 +254,8 @@ document.getElementById('app').innerHTML = `
       <div class="perf-breakdown">
         <div class="perf-section-title">TRADE BREAKDOWN</div>
         <div class="perf-breakdown-bars" id="perf-breakdown">
-          <div class="pb-row"><span class="pb-label">🚀 TP2 Full Win</span><div class="pb-bar-wrap"><div class="pb-bar tp2" id="pb-tp2" style="width:31%"></div></div><span class="pb-val" id="pb-tp2-val">4</span></div>
-          <div class="pb-row"><span class="pb-label">🟢 TP1 Secured</span><div class="pb-bar-wrap"><div class="pb-bar tp1" id="pb-tp1" style="width:15%"></div></div><span class="pb-val" id="pb-tp1-val">2</span></div>
-          <div class="pb-row"><span class="pb-label">❌ Stop Loss</span><div class="pb-bar-wrap"><div class="pb-bar sl" id="pb-sl" style="width:54%"></div></div><span class="pb-val" id="pb-sl-val">7</span></div>
+          <div class="pb-row"><span class="pb-label">🎯 Target Hit</span><div class="pb-bar-wrap"><div class="pb-bar tp2" id="pb-tp2" style="width:0%"></div></div><span class="pb-val" id="pb-tp2-val">0</span></div>
+          <div class="pb-row"><span class="pb-label">❌ Stop Loss</span><div class="pb-bar-wrap"><div class="pb-bar sl" id="pb-sl" style="width:0%"></div></div><span class="pb-val" id="pb-sl-val">0</span></div>
         </div>
         <div class="perf-note">Even with 54% SL rate, <strong>Profit Factor 2.09</strong> means every dollar lost returns .09 in wins.</div>
       </div>

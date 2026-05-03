@@ -56,13 +56,11 @@ function renderPerformanceDashboard(d) {
   // Breakdown bars
   const total = (d.breakdown?.tp2 ?? 0) + (d.breakdown?.tp1Secured ?? 0) + (d.breakdown?.sl ?? 0);
   if (total > 0) {
-    const pctOf = n => ((n / total) * 100).toFixed(0) + '%';
-    document.getElementById('pb-tp2').style.width   = pctOf(d.breakdown.tp2);
-    document.getElementById('pb-tp1').style.width   = pctOf(d.breakdown.tp1Secured);
-    document.getElementById('pb-sl').style.width    = pctOf(d.breakdown.sl);
-    document.getElementById('pb-tp2-val').textContent = d.breakdown.tp2;
-    document.getElementById('pb-tp1-val').textContent = d.breakdown.tp1Secured;
-    document.getElementById('pb-sl-val').textContent  = d.breakdown.sl;
+    const tp1Count = (d.breakdown?.tp1 ?? 0) + (d.breakdown?.tp2 ?? 0) + (d.breakdown?.tp1Secured ?? 0);
+    const slCount  = d.breakdown?.sl ?? 0;
+    const pctOf = (n, t) => t > 0 ? ((n / t) * 100).toFixed(0) + '%' : '0%';
+    if (document.getElementById('pb-tp2')) { document.getElementById('pb-tp2').style.width = pctOf(tp1Count, total); document.getElementById('pb-tp2-val').textContent = tp1Count; }
+    if (document.getElementById('pb-sl')) { document.getElementById('pb-sl').style.width = pctOf(slCount, total); document.getElementById('pb-sl-val').textContent = slCount; }
   }
 
   // Equity curve SVG
@@ -100,7 +98,7 @@ function renderPerformanceDashboard(d) {
   const trades = (d.trades || []).slice(-8).reverse();
   const tList  = document.getElementById('perf-trades-list');
   if (!trades.length) {
-    tList.innerHTML = '<div class="perf-loading">No trades yet — bot running live</div>';
+    tList.innerHTML = '<div class="perf-loading">🤖 Bot is live — waiting for first high-confidence signal...<br><span style="font-size:11px;opacity:0.6">Min threshold: 85% | Min SL: 3.5×ATR | 4h cooldown</span></div>';
     return;
   }
   tList.innerHTML = trades.map(t => {
