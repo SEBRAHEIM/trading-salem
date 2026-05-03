@@ -1,6 +1,6 @@
 /**
  * ForexSignal Pro — Main Application
- * Design philosophy: ONE final signal. 20 strategies run silently.
+ * Design philosophy: ONE final signal. 9 precision strategies, all must agree.
  * A BUY or SELL only fires when 95% consensus is reached.
  */
 
@@ -41,7 +41,7 @@ document.getElementById('app').innerHTML = `
       <div class="logo-icon">⚡</div>
       <div>
         <div class="logo-text">ForexSignal Pro</div>
-        <div class="logo-sub">22-Strategy Consensus Engine</div>
+        <div class="logo-sub">9-Strategy Precision Engine</div>
       </div>
     </div>
 
@@ -194,7 +194,7 @@ document.getElementById('app').innerHTML = `
 
         <!-- Strategy breakdown toggle -->
         <button class="strategies-toggle" id="strategies-toggle">
-          <span>View 22 strategies ›</span>
+          <span>View 9 strategies ›</span>
           <span class="strat-counts" id="strat-counts"></span>
         </button>
 
@@ -284,7 +284,7 @@ document.getElementById('strategies-toggle').addEventListener('click', () => {
   const panel = document.getElementById('strategies-panel');
   const toggle = document.getElementById('strategies-toggle');
   panel.style.display = state.showStrategies ? 'flex' : 'none';
-  toggle.querySelector('span').textContent = state.showStrategies ? 'Hide strategies ×' : 'View 22 strategies ›';
+  toggle.querySelector('span').textContent = state.showStrategies ? 'Hide strategies ×' : 'View 9 strategies ›';
   if (state.showStrategies) renderStrategyList();
 });
 
@@ -463,10 +463,10 @@ function renderSignal(agg) {
   valEl.textContent = sig;
   valEl.className = `signal-hero-value ${cls}`;
 
-  if (sig === 'BUY') subEl.textContent = `${agg.buyCount} of 22 strategies aligned — ${agg.riskLevel}`;
-  else if (sig === 'SELL') subEl.textContent = `${agg.sellCount} of 22 strategies aligned — ${agg.riskLevel}`;
-  else if (agg.vetoReason) subEl.textContent = `${Math.max(agg.buyCount, agg.sellCount)} of 22 aligned — BLOCKED BY VETO`;
-  else subEl.textContent = `Only ${Math.max(agg.buyCount, agg.sellCount)} of 22 aligned — ${agg.threshold || 80}% threshold not met`;
+  if (sig === 'BUY') subEl.textContent = `${agg.buyCount} of ${agg.buyCount + agg.sellCount + agg.neutralCount} strategies aligned — ${agg.riskLevel}`;
+  else if (sig === 'SELL') subEl.textContent = `${agg.sellCount} of ${agg.buyCount + agg.sellCount + agg.neutralCount} strategies aligned — ${agg.riskLevel}`;
+  else if (agg.vetoReason) subEl.textContent = `${Math.max(agg.buyCount, agg.sellCount)} of ${agg.buyCount + agg.sellCount + agg.neutralCount} aligned — BLOCKED BY VETO`;
+  else subEl.textContent = `Only ${Math.max(agg.buyCount, agg.sellCount)} of ${agg.buyCount + agg.sellCount + agg.neutralCount} aligned — ${agg.threshold || 85}% threshold not met`;
 
   // gauge
   const conf = agg.finalConfidence;
@@ -529,7 +529,7 @@ function renderReasoning(results, agg) {
       header = `<div class="reasoning-alert amber">⚠️ ${agg.finalConfidence}% consensus — below ${agg.threshold || 80}% threshold. ${agg.buyCount} strategies bullish vs ${agg.sellCount} bearish. Waiting for stronger alignment.</div>`;
     }
   } else {
-    header = `<div class="reasoning-alert ${sig === 'BUY' ? 'green' : 'red'}">✅ ${sig} confirmed at ${agg.finalConfidence}% consensus (${agg.riskLevel}). ${direction === 'buy' ? agg.buyCount : agg.sellCount}/22 strategies agree.</div>`;
+    header = `<div class="reasoning-alert ${sig === 'BUY' ? 'green' : 'red'}">✅ ${sig} confirmed at ${agg.finalConfidence}% consensus (${agg.riskLevel}). ${direction === 'buy' ? agg.buyCount : agg.sellCount}/${agg.buyCount + agg.sellCount + agg.neutralCount} strategies agree.</div>`;
   }
 
   const bullets = supporting.map(r =>

@@ -162,64 +162,68 @@ export function computeRiskParams(candles, signal, confidence, interval = '15min
   const price = last.close;
   const isBuy = signal === 'BUY';
 
-  // ─── Advanced AI Dynamic Swing/Pivot SL ──────────────────────────────────────
-  // Finds the most recent structural support/resistance to tuck the SL behind.
-  const recentPeriod = 15;
-  const recentCandles = candles.slice(-recentPeriod);
-  const highestHigh = Math.max(...recentCandles.map(c => c.high));
-  const lowestLow = Math.min(...recentCandles.map(c => c.low));
+  // ─── Structural SL Placement (Swing-Based) ───────────────────────────────────
+  // XAU/USD moves $3-$8 per 15m candle. SL must sit WELL outside noise.
+  // Lookback: last 20 candles (~5 hours on 15m) for a proper structural swing.
+  const swingLookback = 20;
+  const recentCandles = candles.slice(-swingLookback);
+  const swingHigh = Math.max(...recentCandles.map(c => c.high));
+  const swingLow  = Math.min(...recentCandles.map(c => c.low));
 
-  let structuralSl = isBuy 
-    ? lowestLow - (avgATR * 0.1) // Just below recent swing low
-    : highestHigh + (avgATR * 0.1); // Just above recent swing high
+  // Buffer = 0.5× ATR beyond swing (gives real breathing room vs 0.3x before)
+  const buffer = avgATR * 0.5;
+  let structuralSl = isBuy
+    ? swingLow  - buffer  // BUY: SL below swing low
+    : swingHigh + buffer; // SELL: SL above swing high
 
   let slDistance = Math.abs(price - structuralSl);
 
-  // AI Strict Capital Preservation limits: If swing is too distant, cap the SL tightly!
-  // Prevents the "stop loss is too far" bleed.
-  const maxSlMultiplier = confidence >= 95 ? 0.8 : confidence >= 90 ? 1.0 : 1.2;
-  const maxAtrSlDistance = avgATR * maxSlMultiplier;
+  // ─── SL Distance Guardrails ──────────────────────────────────────────────────
+  // MINIMUM: 2.0× ATR — XAU/USD noise requires at least $6-$16 of room
+  // (Old 1.5x was too tight — market noise alone triggered stops)
+  const minSlDistance = avgATR * 2.0;
 
-  // Force tighten if too wide
-  if (slDistance > maxAtrSlDistance) {
-    structuralSl = isBuy ? price - maxAtrSlDistance : price + maxAtrSlDistance;
-  }
-  // Base minimum breathing room (to avoid instant spread-out)
-  else if (slDistance < avgATR * 0.4) {
-    structuralSl = isBuy ? price - (avgATR * 0.4) : price + (avgATR * 0.4);
+  // MAXIMUM: 3.5× ATR — cap to maintain acceptable R:R on wide-range days
+  const maxSlDistance = avgATR * 3.5;
+
+  if (slDistance < minSlDistance) {
+    structuralSl = isBuy ? price - minSlDistance : price + minSlDistance;
+  } else if (slDistance > maxSlDistance) {
+    structuralSl = isBuy ? price - maxSlDistance : price + maxSlDistance;
   }
 
-  const stopLoss = structuralSl;
+  const stopLoss = +structuralSl.toFixed(2);
   const actualSlDistance = Math.abs(price - stopLoss);
 
-  // Timeframe multiplier — higher timeframes get proportionally larger take profits
-  const tfMult = { '1min': 1.0, '5min': 1.5, '15min': 2.2, '30min': 3.0, '1h': 4.0, '4h': 5.0, '1day': 6.0 }[interval] || 2.2;
+  // ─── Take Profit Levels ───────────────────────────────────────────────────────
+  // TP1: 1.5× SL distance — minimum 1:1.5 R:R (widened SL means TP is also wider)
+  // TP2: 3.5× SL distance on 15m — runner target
+  const tfMult = { '1min': 2.0, '5min': 2.5, '15min': 3.5, '30min': 4.0, '1h': 5.0, '4h': 6.0, '1day': 7.0 }[interval] || 3.5;
 
-  // Take Profits are now highly asymmetric based on the tightened SL
-  // (Aiming for 1v1.5 and 1v3.0+ Risk/Reward)
   const takeProfit1 = isBuy ? price + (actualSlDistance * 1.5) : price - (actualSlDistance * 1.5);
-  const takeProfit2 = isBuy ? price + (actualSlDistance * Math.max(3.0, tfMult)) : price - (actualSlDistance * Math.max(3.0, tfMult));
+  const takeProfit2 = isBuy ? price + (actualSlDistance * tfMult) : price - (actualSlDistance * tfMult);
 
   const riskReward = Math.abs(takeProfit2 - price) / actualSlDistance;
 
   const volatilityPct = (avgATR / price) * 100;
-  // XAU/USD: 1 pip = $1.00 price movement (industry standard for spot gold)
-  const pipScale = 1;
+  const pipScale = 1; // XAU/USD: 1 pip = $1.00
   const dp = 2;
 
   return {
-    entry:       +price.toFixed(dp),
-    stopLoss:    +stopLoss.toFixed(dp),
-    takeProfit1: +takeProfit1.toFixed(dp),
-    takeProfit2: +takeProfit2.toFixed(dp),
-    riskReward:  +riskReward.toFixed(1),
-    atr:         +avgATR.toFixed(dp),
+    entry:         +price.toFixed(dp),
+    stopLoss:      +stopLoss.toFixed(dp),
+    takeProfit1:   +takeProfit1.toFixed(dp),
+    takeProfit2:   +takeProfit2.toFixed(dp),
+    riskReward:    +riskReward.toFixed(1),
+    atr:           +avgATR.toFixed(dp),
     volatilityPct: +volatilityPct.toFixed(3),
     highVolatility: volatilityPct > 0.8,
-    slPoints:    +(Math.abs(price - stopLoss) * pipScale).toFixed(1),
-    tp1Points:   +(Math.abs(price - takeProfit1) * pipScale).toFixed(1),
-    tp2Points:   +(Math.abs(price - takeProfit2) * pipScale).toFixed(1),
-    timeframe:   interval,
+    slPoints:      +(actualSlDistance * pipScale).toFixed(1),
+    tp1Points:     +(Math.abs(price - takeProfit1) * pipScale).toFixed(1),
+    tp2Points:     +(Math.abs(price - takeProfit2) * pipScale).toFixed(1),
+    timeframe:     interval,
+    swingHigh:     +swingHigh.toFixed(dp),
+    swingLow:      +swingLow.toFixed(dp),
   };
 }
 
