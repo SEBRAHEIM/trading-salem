@@ -388,6 +388,37 @@ export const STRATEGIES = [
     }
   },
 
+
+  // 12. VWAP Strategy — the most important intraday level (used by every pro desk)
+  {
+    id: 'vwap',
+    name: 'VWAP Position',
+    category: 'Volume',
+    weight: 9,
+    analyze(candles) {
+      const vwapArr = I.vwap(candles);
+      const price   = last(candles).close;
+      const vwap    = last(vwapArr);
+      const atrArr  = I.atr(candles, 14);
+      const atr     = last(atrArr) || 1;
+      if (!vwap) return { signal: 'neutral', confidence: 0, reason: 'VWAP not ready' };
+      const dist   = price - vwap;
+      const distPct = (Math.abs(dist) / vwap) * 100;
+      // Price well above VWAP = bullish (institutions buying above VWAP = strength)
+      // Price well below VWAP = bearish (selling pressure below VWAP)
+      const aboveVwap = price > vwap;
+      const nearVwap  = Math.abs(dist) < atr * 0.4; // Within 0.4 ATR = at VWAP
+      // Pullback to VWAP in uptrend = best buy entry (institutional support)
+      if (nearVwap && aboveVwap)  return { signal: 'buy',  confidence: 76, reason: `Price pulling back to VWAP (${vwap.toFixed(2)}) from above — institutional support zone` };
+      if (nearVwap && !aboveVwap) return { signal: 'sell', confidence: 76, reason: `Price bouncing to VWAP (${vwap.toFixed(2)}) from below — institutional resistance zone` };
+      // Price strongly above/below VWAP
+      if (aboveVwap && distPct > 0.15) return { signal: 'buy',  confidence: 65, reason: `Price ${distPct.toFixed(2)}% above VWAP (${vwap.toFixed(2)}) — bullish momentum` };
+      if (!aboveVwap && distPct > 0.15) return { signal: 'sell', confidence: 65, reason: `Price ${distPct.toFixed(2)}% below VWAP (${vwap.toFixed(2)}) — bearish momentum` };
+      // Right at VWAP — indecision
+      return { signal: 'neutral', confidence: 48, reason: `Price at VWAP (${vwap.toFixed(2)}) — wait for breakout direction` };
+    }
+  },
+
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────

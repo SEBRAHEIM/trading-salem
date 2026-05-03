@@ -10,12 +10,9 @@
     }
   ],
   "functions": {
-    "api/cron-tick.js": {
-      "maxDuration": 30
-    },
-    "api/candles.js": {
-      "maxDuration": 20
-    }
+    "api/cron-tick.js": { "maxDuration": 30 },
+    "api/candles.js":  { "maxDuration": 20 },
+    "api/performance.js": { "maxDuration": 15 }
   },
   "rewrites": [
     {
