@@ -10,7 +10,7 @@ import { fetchCandles, fetchLivePrice, addSyntheticTick, PAIRS, INTERVALS } from
 import { runAllStrategies, aggregateSignals, strategyContext } from './strategies/strategies.js';
 import { computeRiskParams } from './data/backtest.js';
 import { parseWhalesCSV, fetchLiveWhalesAPI, whaleLevels } from './data/whales.js';
-import './perf-dashboard.js';
+import { initPerfDashboard } from './perf-dashboard.js';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 const state = {
@@ -294,6 +294,8 @@ setTimeout(async () => {
     await initChart(container, state.pair, state.interval);
     await loadAndAnalyze();
   }
+  // Init performance dashboard AFTER HTML exists
+  initPerfDashboard();
 }, 300);
 
 // ─── No Tab Navigation needed for single page Layout ─────────────

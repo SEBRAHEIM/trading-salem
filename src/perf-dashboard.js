@@ -118,6 +118,9 @@ function renderPerformanceDashboard(d) {
   }).join('');
 }
 
-// ─── Init Performance Dashboard ───────────────────────────────────────────────
-loadPerformanceDashboard();
-document.getElementById('perf-refresh-btn').addEventListener('click', loadPerformanceDashboard);
+// ─── Export init — called by main.js AFTER HTML template is rendered ─────────
+export function initPerfDashboard() {
+  loadPerformanceDashboard();
+  const btn = document.getElementById('perf-refresh-btn');
+  if (btn) btn.addEventListener('click', loadPerformanceDashboard);
+}
