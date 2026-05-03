@@ -333,23 +333,13 @@ export default async function handler(req, res) {
             state.lastSignalTime = new Date().toISOString();
             stateChanged = true;
 
-            // Build confluence summary for Telegram
-            const confluenceLines = newsData.headlines.length > 0
-              ? `\n\n📰 <b>News Context:</b> ${newsData.headlines[0]}`
-              : '';
-            const whaleNote = whaleData?.sentiment && whaleData.sentiment !== 'neutral'
-              ? `\n🐳 <b>Institutional Flow:</b> ${whaleData.sentiment.toUpperCase()}`
-              : '';
-
             await sendTG(
               `🚨 <b>${agg.finalSignal} XAU/USD</b>\n` +
-              `⚠️ <b>${agg.riskLevel}</b> | R:R ${risk.riskReward}x\n\n` +
-              `Entry price: ${risk.entry}\n` +
-              `TP1: ${risk.takeProfit1}\n` +
-              `TP2: ${risk.takeProfit2}\n` +
-              `SL: ${risk.stopLoss}` +
-              confluenceLines +
-              whaleNote
+              `⚠️ <b>${agg.riskLevel}</b> | Confidence: ${agg.finalConfidence}% | R:R ${risk.riskReward}x\n\n` +
+              `🟢 Entry:  ${risk.entry}\n` +
+              `🎯 TP1:    ${risk.takeProfit1}\n` +
+              `🛑 SL:     ${risk.stopLoss}\n` +
+              `📏 SL pts: ${risk.slPoints}pts | TP pts: ${risk.tp1Points}pts`
             );
             } // end meetsMinRR
           }
