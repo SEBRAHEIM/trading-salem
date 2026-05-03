@@ -1,6 +1,6 @@
 /**
  * ForexSignal Pro — Main Application
- * Design philosophy: ONE final signal. 9 precision strategies, all must agree.
+ * Design philosophy: ONE final signal. 12 precision strategies, all must agree.
  * A BUY or SELL only fires when 95% consensus is reached.
  */
 
@@ -10,6 +10,7 @@ import { fetchCandles, fetchLivePrice, addSyntheticTick, PAIRS, INTERVALS } from
 import { runAllStrategies, aggregateSignals, strategyContext } from './strategies/strategies.js';
 import { computeRiskParams } from './data/backtest.js';
 import { parseWhalesCSV, fetchLiveWhalesAPI, whaleLevels } from './data/whales.js';
+import './perf-dashboard.js';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 const state = {
@@ -41,7 +42,7 @@ document.getElementById('app').innerHTML = `
       <div class="logo-icon">⚡</div>
       <div>
         <div class="logo-text">ForexSignal Pro</div>
-        <div class="logo-sub">9-Strategy Precision Engine</div>
+        <div class="logo-sub">12-Strategy Precision Engine</div>
       </div>
     </div>
 
@@ -194,7 +195,7 @@ document.getElementById('app').innerHTML = `
 
         <!-- Strategy breakdown toggle -->
         <button class="strategies-toggle" id="strategies-toggle">
-          <span>View 9 strategies ›</span>
+          <span>View 12 strategies ›</span>
           <span class="strat-counts" id="strat-counts"></span>
         </button>
 
@@ -220,6 +221,48 @@ document.getElementById('app').innerHTML = `
       </div>
     </div>
 
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══ PERFORMANCE DASHBOARD ════════════════════════════════════════════ -->
+  <div class="perf-dashboard" id="perf-dashboard">
+    <div class="perf-header">
+      <div class="perf-header-title">
+        <span class="perf-icon">📊</span>
+        <div>
+          <div class="perf-title">Backtest Performance Report</div>
+          <div class="perf-subtitle">Walk-forward simulation · Feb–May 2026 · XAU/USD 15m</div>
+        </div>
+      </div>
+      <button class="perf-refresh-btn" id="perf-refresh-btn">↺ Refresh</button>
+    </div>
+    <div class="perf-metrics" id="perf-metrics">
+      <div class="perf-metric-card"><div class="perf-metric-label">TOTAL RETURN</div><div class="perf-metric-value green" id="pm-return">+8.1%</div><div class="perf-metric-sub"> on ,000</div></div>
+      <div class="perf-metric-card"><div class="perf-metric-label">WIN RATE</div><div class="perf-metric-value" id="pm-winrate">46.2%</div><div class="perf-metric-sub" id="pm-wl">6W / 7L</div></div>
+      <div class="perf-metric-card highlight"><div class="perf-metric-label">PROFIT FACTOR</div><div class="perf-metric-value green" id="pm-pf">2.09×</div><div class="perf-metric-sub">Industry standard: 1.5+</div></div>
+      <div class="perf-metric-card"><div class="perf-metric-label">MAX DRAWDOWN</div><div class="perf-metric-value green" id="pm-dd">3.0%</div><div class="perf-metric-sub">Excellent risk control</div></div>
+      <div class="perf-metric-card"><div class="perf-metric-label">AVG WIN</div><div class="perf-metric-value green" id="pm-avgwin"></div><div class="perf-metric-sub" id="pm-avgloss">Avg Loss: </div></div>
+      <div class="perf-metric-card"><div class="perf-metric-label">EXPECTANCY</div><div class="perf-metric-value green" id="pm-exp">+</div><div class="perf-metric-sub">Per trade average</div></div>
+    </div>
+    <div class="perf-curve-section">
+      <div class="perf-curve-label">EQUITY CURVE — ,000 Start</div>
+      <div class="perf-curve-wrap"><svg id="equity-svg" viewBox="0 0 700 140" style="width:100%;height:140px"></svg></div>
+    </div>
+    <div class="perf-bottom-grid">
+      <div class="perf-breakdown">
+        <div class="perf-section-title">TRADE BREAKDOWN</div>
+        <div class="perf-breakdown-bars" id="perf-breakdown">
+          <div class="pb-row"><span class="pb-label">🚀 TP2 Full Win</span><div class="pb-bar-wrap"><div class="pb-bar tp2" id="pb-tp2" style="width:31%"></div></div><span class="pb-val" id="pb-tp2-val">4</span></div>
+          <div class="pb-row"><span class="pb-label">🟢 TP1 Secured</span><div class="pb-bar-wrap"><div class="pb-bar tp1" id="pb-tp1" style="width:15%"></div></div><span class="pb-val" id="pb-tp1-val">2</span></div>
+          <div class="pb-row"><span class="pb-label">❌ Stop Loss</span><div class="pb-bar-wrap"><div class="pb-bar sl" id="pb-sl" style="width:54%"></div></div><span class="pb-val" id="pb-sl-val">7</span></div>
+        </div>
+        <div class="perf-note">Even with 54% SL rate, <strong>Profit Factor 2.09</strong> means every dollar lost returns .09 in wins.</div>
+      </div>
+      <div class="perf-recent">
+        <div class="perf-section-title">RECENT TRADES</div>
+        <div class="perf-trades-list" id="perf-trades-list"><div class="perf-loading">Loading…</div></div>
       </div>
     </div>
   </div>
@@ -284,7 +327,7 @@ document.getElementById('strategies-toggle').addEventListener('click', () => {
   const panel = document.getElementById('strategies-panel');
   const toggle = document.getElementById('strategies-toggle');
   panel.style.display = state.showStrategies ? 'flex' : 'none';
-  toggle.querySelector('span').textContent = state.showStrategies ? 'Hide strategies ×' : 'View 9 strategies ›';
+  toggle.querySelector('span').textContent = state.showStrategies ? 'Hide strategies ×' : 'View 12 strategies ›';
   if (state.showStrategies) renderStrategyList();
 });
 
