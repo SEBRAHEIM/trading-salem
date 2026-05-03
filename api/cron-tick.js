@@ -232,7 +232,6 @@ export default async function handler(req, res) {
         }
         if (lastClose >= t.tp2 && !t.hitTp2 && t.hitTp1) {
           t.hitTp2 = true; closeResult = 'TP2';
-          await sendTG(`🚀 <b>TP2 CRUSHED!</b>\n\n<b>Asset:</b> XAU/USD\n<b>Price:</b> ${lastClose}\n<b>TP2:</b> ${t.tp2}\n<b>Entry:</b> ${t.entry}\n<b>Pips:</b> +${(lastClose - t.entry).toFixed(1)}`);
         }
         if (lastClose <= t.sl) {
           closeResult = t.hitTp1 ? 'TP1_Secured' : 'SL';
@@ -250,7 +249,6 @@ export default async function handler(req, res) {
         }
         if (lastClose <= t.tp2 && !t.hitTp2 && t.hitTp1) {
           t.hitTp2 = true; closeResult = 'TP2';
-          await sendTG(`🚀 <b>TP2 CRUSHED!</b>\n\n<b>Asset:</b> XAU/USD\n<b>Price:</b> ${lastClose}\n<b>TP2:</b> ${t.tp2}\n<b>Entry:</b> ${t.entry}\n<b>Pips:</b> +${(t.entry - lastClose).toFixed(1)}`);
         }
         if (lastClose >= t.sl) {
           closeResult = t.hitTp1 ? 'TP1_Secured' : 'SL';
