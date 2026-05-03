@@ -19,7 +19,7 @@ const TELEGRAM_TARGETS = [
 const UW_API_KEY = "d9dc6e61-6157-4070-af00-2f868fd5dc27";
 const PAPER_START = 150;
 const PAPER_RISK_PCT = 1.0;
-const STATE_URL = 'https://jsonblob.com/api/jsonBlob/019d9ab2-26ea-70d2-bc44-9a788ea20156';
+const STATE_URL = 'https://jsonblob.com/api/jsonBlob/019decaf-f536-7e6e-a0a5-e64f65a8b46b';
 
 // ─── Session Config ───────────────────────────────────────────────────────────
 // Only block during actual forex market closure (Saturday all day,
