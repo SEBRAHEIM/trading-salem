@@ -178,8 +178,8 @@ export function computeRiskParams(candles, signal, confidence, interval = '15min
   let slDistance = Math.abs(price - structuralSl);
 
   // ─── SL Guardrails ───────────────────────────────────────────────────────────────
-  const minSlDistance = avgATR * 1.5;   // Never tighter than 1.5× ATR
-  const maxSlDistance = avgATR * 4.0;   // Never wider than 4× ATR
+  const minSlDistance = avgATR * 3.5;   // XAU/USD MINIMUM: 3.5× ATR (~$20-25 room)
+  const maxSlDistance = avgATR * 5.0;   // Never wider than 5× ATR
 
   if (slDistance < minSlDistance) {
     structuralSl = isBuy ? price - minSlDistance : price + minSlDistance;
@@ -191,18 +191,18 @@ export function computeRiskParams(candles, signal, confidence, interval = '15min
   const actualSlDistance = Math.abs(price - stopLoss);
 
   // ─── Take Profit Levels ───────────────────────────────────────────────────────────────
-  // TP1: 1.5× SL — partial close, then move SL to breakeven
+  // TP1: 2.0× SL — the ONLY target (TP2 removed). 1:2 R:R.
   // TP2: 3.0× SL — final target for clean 1:3 R:R
   const tfMult = { '1min': 2.0, '5min': 2.5, '15min': 3.0, '30min': 3.5, '1h': 4.0, '4h': 5.0, '1day': 6.0 }[interval] || 3.0;
 
-  const takeProfit1 = isBuy ? price + (actualSlDistance * 1.5) : price - (actualSlDistance * 1.5);
+  const takeProfit1 = isBuy ? price + (actualSlDistance * 2.0) : price - (actualSlDistance * 2.0);
   const takeProfit2 = isBuy ? price + (actualSlDistance * tfMult) : price - (actualSlDistance * tfMult);
 
   const rrTP2 = Math.abs(takeProfit2 - price) / actualSlDistance;
 
   // ─── R:R Gate ──────────────────────────────────────────────────────────────────────
   // If TP2 R:R < 1.5, the trade setup is not worth taking. cron gates on this.
-  const meetsMinRR = rrTP2 >= 1.5;
+  const meetsMinRR = (Math.abs(takeProfit1 - price) / actualSlDistance) >= 1.5; // TP1 is now the only target
 
   const riskReward = rrTP2;
 

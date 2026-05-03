@@ -35,7 +35,7 @@ async function loadState() {
     const r = await fetch(STATE_URL, { headers: { 'Accept': 'application/json' } });
     if (r.ok) return await r.json();
   } catch (e) { console.log('[STATE] Load error:', e.message); }
-  return { equity: PAPER_START, peakEquity: PAPER_START, trades: [], openTrade: null, lastSignal: null, lastSignalTime: null, seenHeadlines: [] };
+  return { equity: PAPER_START, peakEquity: PAPER_START, startEquity: PAPER_START, startDate: new Date().toISOString().slice(0,10), trades: [], openTrade: null, lastSignal: null, lastSignalTime: null, seenHeadlines: [] };
 }
 
 async function saveState(state) {
@@ -262,8 +262,7 @@ export default async function handler(req, res) {
       if (closeResult) {
         let pnl = 0;
         if (closeResult === 'SL') pnl = -dollarRisk;
-        else if (closeResult === 'TP1_Secured') pnl = +(dollarRisk * 1.5).toFixed(2);
-        else if (closeResult === 'TP2') pnl = +(dollarRisk * 2.5).toFixed(2);
+        else if (closeResult === 'TP1') pnl = +(dollarRisk * 2.0).toFixed(2);
 
         const pipScale = 1;
         const rawPips = isBuy ? (lastClose - t.entry) * pipScale : (t.entry - lastClose) * pipScale;
@@ -305,7 +304,7 @@ export default async function handler(req, res) {
 
       // ─── GATE 4: Cooldown ─────────────────────────────────────────────────────
       else {
-        const COOLDOWN_MS = 10 * 60 * 1000;
+        const COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 hours — prevents rapid signal chains
         const lastTime = state.lastSignalTime ? new Date(state.lastSignalTime).getTime() : 0;
         const inCooldown = Date.now() - lastTime < COOLDOWN_MS;
 
@@ -324,8 +323,7 @@ export default async function handler(req, res) {
             state.openTrade = {
               id: Date.now(), pair: 'XAU/USD', direction: agg.finalSignal,
               confidence: agg.finalConfidence, openTime: new Date().toISOString(),
-              entry: risk.entry, sl: risk.stopLoss, tp1: risk.takeProfit1,
-              tp2: risk.takeProfit2, riskReward: risk.riskReward,
+              entry: risk.entry, sl: risk.stopLoss, tp1: risk.takeProfit1, riskReward: risk.riskReward,
               originalSl: risk.stopLoss,   // ← keep original for reference
               breakevenMoved: false,        // ← tracks if SL moved to breakeven
               newsContext: newsData.headlines.slice(0, 3).join(' | '),

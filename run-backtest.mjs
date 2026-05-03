@@ -12,7 +12,7 @@ import { computeRiskParams } from './src/data/backtest.js';
 import fs from 'fs';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-const START_EQUITY    = 10000;
+const START_EQUITY    = 150;   // Real starting capital
 const RISK_PCT        = 1.0;
 const MIN_HISTORY     = 150;
 const WINDOW          = 300;
@@ -78,28 +78,14 @@ for (let i = MIN_HISTORY; i < candles.length; i++) {
 
     if (isBuy) {
       // TP2 (full target)
-      if (bar.high >= tp2 && hitTp1) {
-        closeResult = 'TP2'; closePrice = tp2;
-      }
-      // TP1 (partial, move SL to breakeven)
-      else if (bar.high >= tp1 && !hitTp1) {
-        openTrade.hitTp1 = true;
-        openTrade.sl = entry; // Breakeven
-        openTrade.breakevenMoved = true;
-      }
+      if (bar.high >= tp1 && !hitTp1) { closeResult = 'TP1'; closePrice = tp1; }
       // SL hit
       if (!closeResult && bar.low <= openTrade.sl) {
         closeResult = openTrade.hitTp1 ? 'TP1_Secured' : 'SL';
         closePrice  = openTrade.sl;
       }
     } else { // SELL
-      if (bar.low <= tp2 && hitTp1) {
-        closeResult = 'TP2'; closePrice = tp2;
-      } else if (bar.low <= tp1 && !hitTp1) {
-        openTrade.hitTp1 = true;
-        openTrade.sl = entry;
-        openTrade.breakevenMoved = true;
-      }
+      if (bar.low <= tp1 && !hitTp1) { closeResult = 'TP1'; closePrice = tp1; }
       if (!closeResult && bar.high >= openTrade.sl) {
         closeResult = openTrade.hitTp1 ? 'TP1_Secured' : 'SL';
         closePrice  = openTrade.sl;

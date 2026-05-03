@@ -16,7 +16,7 @@ export default async function handler(req, res) {
     const trades = (state.trades || []).filter(t => t.result);
     const openTrade = state.openTrade || null;
     const equity = state.equity || 150;
-    const startEquity = 150;
+    const startEquity = state.startEquity || 150;
 
     if (!trades.length) {
       return res.status(200).json({
