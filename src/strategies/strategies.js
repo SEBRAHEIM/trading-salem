@@ -61,22 +61,28 @@ function findSwingPoints(candles, lookback = 5) {
 // ─── STRATEGIES ───────────────────────────────────────────────────────────────
 export const STRATEGIES = [
 
-  // 1. H4 Trend Bias — aggregates 15m into H4, reads macro direction
+  // 1. HTF Trend Bias — uses H1 (4×15m=1h) for reliable data, H4 when enough candles
   {
     id: 'htf_trend',
-    name: 'H4 Macro Trend',
+    name: 'H1/H4 Macro Trend',
     category: 'Trend',
     weight: 12,
     analyze(candles) {
-      const h4 = aggregateCandles(candles, 16); // 16×15m = 4h
-      if (h4.length < 25) return { signal: 'neutral', confidence: 0, reason: 'Not enough H4 data' };
-      const closes = h4.map(c => c.close);
-      const e20 = emaLocal(closes, 20);
-      const e50 = emaLocal(closes, Math.min(50, closes.length - 1));
+      // Prefer H4 (16×15m), fall back to H1 (4×15m) — always actionable
+      let agg = aggregateCandles(candles, 16); // H4
+      let tfLabel = 'H4';
+      if (agg.length < 22) {
+        agg = aggregateCandles(candles, 4);   // H1
+        tfLabel = 'H1';
+      }
+      if (agg.length < 22) return { signal: 'neutral', confidence: 0, reason: 'Not enough candle data for HTF analysis' };
+      const closes = agg.map(c => c.close);
+      const e20 = emaLocal(closes, Math.min(20, closes.length - 2));
+      const e50 = emaLocal(closes, Math.min(50, closes.length - 2));
       const price = last(closes);
       const em20 = last(e20), em50 = last(e50);
       const em20p = prev(e20, 2);
-      if (!em20 || !em50) return { signal: 'neutral', confidence: 0, reason: 'EMA not ready' };
+      if (!em20 || !em50 || !em20p) return { signal: 'neutral', confidence: 0, reason: 'EMA not ready' };
       const slope = ((em20 - em20p) / em20p) * 100;
       let score = 0;
       if (price > em20)  score += 40; else score -= 40;
@@ -84,7 +90,7 @@ export const STRATEGIES = [
       if (slope > 0)     score += 25; else score -= 25;
       const sig  = score > 0 ? 'buy' : score < 0 ? 'sell' : 'neutral';
       const conf = Math.min(95, 50 + Math.abs(score) * 0.48);
-      return { signal: sig, confidence: Math.round(conf), reason: `H4: price ${price > em20 ? 'above' : 'below'} EMA20 (${em20.toFixed(2)}), EMA20 ${em20 > em50 ? '>' : '<'} EMA50, slope ${slope.toFixed(3)}%` };
+      return { signal: sig, confidence: Math.round(conf), reason: `${tfLabel}: price ${price > em20 ? 'above' : 'below'} EMA20 (${em20.toFixed(2)}), EMA20 ${em20 > em50 ? '>' : '<'} EMA50, slope ${slope.toFixed(3)}%` };
     }
   },
 
