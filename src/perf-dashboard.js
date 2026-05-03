@@ -7,31 +7,6 @@ async function loadPerformanceDashboard() {
       if (r.ok) data = await r.json();
     } catch {}
 
-    // Fall back to bundled backtest-report.json if no live trade data
-    if (!data || data.totalTrades === 0) {
-      const r2 = await fetch('/backtest-report.json');
-      if (r2.ok) {
-        const bt = await r2.json();
-        data = {
-          totalPnlPct:  bt.performance.totalPct,
-          totalPnl:     bt.performance.totalPnl,
-          winRate:      bt.performance.winRate,
-          winCount:     bt.performance.wins,
-          lossCount:    bt.performance.losses,
-          profitFactor: bt.performance.profitFactor,
-          maxDrawdown:  bt.performance.maxDrawdown,
-          avgWin:       bt.performance.avgWin,
-          avgLoss:      bt.performance.avgLoss,
-          expectancy:   bt.performance.expectancy,
-          equityCurve:  bt.equityCurve,
-          trades:       bt.trades,
-          breakdown:    { tp2: bt.performance.tp2Count, tp1Secured: bt.performance.tp1Count, sl: bt.performance.losses },
-          startEquity:  bt.performance.startEquity,
-          equity:       bt.performance.endEquity,
-        };
-      }
-    }
-
     if (!data) return;
     renderPerformanceDashboard(data);
   } catch (e) { console.warn('Perf dashboard:', e.message); }

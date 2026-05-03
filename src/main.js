@@ -239,15 +239,15 @@ document.getElementById('app').innerHTML = `
       <button class="perf-refresh-btn" id="perf-refresh-btn">↺ Refresh</button>
     </div>
     <div class="perf-metrics" id="perf-metrics">
-      <div class="perf-metric-card"><div class="perf-metric-label">TOTAL RETURN</div><div class="perf-metric-value green" id="pm-return">+8.1%</div><div class="perf-metric-sub"> on ,000</div></div>
-      <div class="perf-metric-card"><div class="perf-metric-label">WIN RATE</div><div class="perf-metric-value" id="pm-winrate">46.2%</div><div class="perf-metric-sub" id="pm-wl">6W / 7L</div></div>
-      <div class="perf-metric-card highlight"><div class="perf-metric-label">PROFIT FACTOR</div><div class="perf-metric-value green" id="pm-pf">2.09×</div><div class="perf-metric-sub">Industry standard: 1.5+</div></div>
-      <div class="perf-metric-card"><div class="perf-metric-label">MAX DRAWDOWN</div><div class="perf-metric-value green" id="pm-dd">3.0%</div><div class="perf-metric-sub">Excellent risk control</div></div>
+      <div class="perf-metric-card"><div class="perf-metric-label">TOTAL RETURN</div><div class="perf-metric-value" id="pm-return">—</div><div class="perf-metric-sub" id="pm-return-sub">Awaiting trades</div></div>
+      <div class="perf-metric-card"><div class="perf-metric-label">WIN RATE</div><div class="perf-metric-value" id="pm-winrate">—</div><div class="perf-metric-sub" id="pm-wl">0W / 0L</div></div>
+      <div class="perf-metric-card highlight"><div class="perf-metric-label">PROFIT FACTOR</div><div class="perf-metric-value" id="pm-pf">—</div><div class="perf-metric-sub">Industry standard: 1.5+</div></div>
+      <div class="perf-metric-card"><div class="perf-metric-label">MAX DRAWDOWN</div><div class="perf-metric-value green" id="pm-dd">—</div><div class="perf-metric-sub">Excellent risk control</div></div>
       <div class="perf-metric-card"><div class="perf-metric-label">AVG WIN</div><div class="perf-metric-value green" id="pm-avgwin"></div><div class="perf-metric-sub" id="pm-avgloss">Avg Loss: </div></div>
       <div class="perf-metric-card"><div class="perf-metric-label">EXPECTANCY</div><div class="perf-metric-value green" id="pm-exp">+</div><div class="perf-metric-sub">Per trade average</div></div>
     </div>
     <div class="perf-curve-section">
-      <div class="perf-curve-label">EQUITY CURVE — ,000 Start</div>
+      <div class="perf-curve-label">EQUITY CURVE — $150 Start (Live)</div>
       <div class="perf-curve-wrap"><svg id="equity-svg" viewBox="0 0 700 140" style="width:100%;height:140px"></svg></div>
     </div>
     <div class="perf-bottom-grid">
@@ -257,7 +257,7 @@ document.getElementById('app').innerHTML = `
           <div class="pb-row"><span class="pb-label">🎯 Target Hit</span><div class="pb-bar-wrap"><div class="pb-bar tp2" id="pb-tp2" style="width:0%"></div></div><span class="pb-val" id="pb-tp2-val">0</span></div>
           <div class="pb-row"><span class="pb-label">❌ Stop Loss</span><div class="pb-bar-wrap"><div class="pb-bar sl" id="pb-sl" style="width:0%"></div></div><span class="pb-val" id="pb-sl-val">0</span></div>
         </div>
-        <div class="perf-note">Even with 54% SL rate, <strong>Profit Factor 2.09</strong> means every dollar lost returns .09 in wins.</div>
+        <div class="perf-note">Bot uses 1:2 R:R — risking $1 to make $2. A 40% win rate is enough to be profitable.</div>
       </div>
       <div class="perf-recent">
         <div class="perf-section-title">RECENT TRADES</div>
