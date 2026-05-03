@@ -22,11 +22,9 @@ const PAPER_RISK_PCT = 1.0;
 const STATE_URL = 'https://jsonblob.com/api/jsonBlob/019d9ab2-26ea-70d2-bc44-9a788ea20156';
 
 // ─── Session Config ───────────────────────────────────────────────────────────
-// Block new signals during low-liquidity windows (UTC hours)
-const BLOCKED_HOURS_UTC = [
-  ...Array.from({ length: 3 }, (_, i) => i),       // 00, 01, 02 — Asia dead zone
-  ...Array.from({ length: 3 }, (_, i) => 21 + i),  // 21, 22, 23 — NY close / weekend
-];
+// Only block during actual forex market closure (Saturday all day,
+// Sunday before 21:00 UTC when Sydney opens). All other hours: TRADE.
+// Asia session (00-05 UTC), NY session (13-22 UTC) — all valid for gold.
 
 // ─── Drawdown Protection ──────────────────────────────────────────────────────
 const MAX_DRAWDOWN_PCT = 5.0; // Pause new entries if equity drops >5% from recorded peak
@@ -142,11 +140,11 @@ async function fetchWhaleData() {
 function isInTradingSession() {
   const nowUTC = new Date();
   const hourUTC = nowUTC.getUTCHours();
-  // Block weekends (Saturday = 6, Sunday = 0 before 21:00 UTC)
-  const dayUTC = nowUTC.getUTCDay();
-  if (dayUTC === 6) return false; // All Saturday
-  if (dayUTC === 0 && hourUTC < 21) return false; // Sunday before Sydney open
-  return !BLOCKED_HOURS_UTC.includes(hourUTC);
+  const dayUTC  = nowUTC.getUTCDay();
+  // Forex markets are CLOSED: all of Saturday + Sunday before 21:00 UTC
+  if (dayUTC === 6) return false;                     // Saturday — market closed
+  if (dayUTC === 0 && hourUTC < 21) return false;    // Sunday before Sydney open
+  return true; // All other times: market is open — trade 24/7
 }
 
 function isInDrawdown(state) {
@@ -277,9 +275,9 @@ export default async function handler(req, res) {
     // 6. Look for new signal (only if no open trade)
     let skipReason = null;
     if (!state.openTrade) {
-      // ─── GATE 1: Trading session check ──────────────────────────────────────
+      // ─── GATE 1: Market closure (weekends only) ──────────────────────────────
       if (!isInTradingSession()) {
-        skipReason = 'Dead zone (low liquidity session)';
+        skipReason = 'Forex market closed (weekend)';
       }
 
       // ─── GATE 2: High-impact news event window ───────────────────────────────
