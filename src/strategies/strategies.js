@@ -318,6 +318,76 @@ export const STRATEGIES = [
     }
   },
 
+
+  // 10. RSI Divergence
+  {
+    id: 'rsi_divergence',
+    name: 'RSI Divergence',
+    category: 'Momentum',
+    weight: 10,
+    analyze(candles) {
+      if (candles.length < 30) return { signal: 'neutral', confidence: 0, reason: 'Insufficient data' };
+      const closes = candles.map(c => c.close);
+      const highs  = candles.map(c => c.high);
+      const lows   = candles.map(c => c.low);
+      const rsiArr = I.rsi(closes, 14);
+      const lb = 25;
+      const rH = highs.slice(-lb), rL = lows.slice(-lb), rR = rsiArr.slice(-lb);
+      const maxPI = rH.indexOf(Math.max(...rH));
+      const minPI = rL.indexOf(Math.min(...rL));
+      const lastP = closes[closes.length - 1];
+      const lastR = rsiArr[rsiArr.length - 1];
+      if (lastR === null) return { signal: 'neutral', confidence: 0, reason: 'RSI not ready' };
+      const bearDiv = lastP > rH[maxPI] && lastR < (rR[maxPI] || lastR) && lastR > 52;
+      const bullDiv = lastP < rL[minPI] && lastR > (rR[minPI] || lastR) && lastR < 48;
+      const hidBull = lastP >= rL[minPI] && lastR > (rR[minPI] || lastR) && lastR < 50;
+      const hidBear = lastP <= rH[maxPI] && lastR < (rR[maxPI] || lastR) && lastR > 50;
+      if (bearDiv) return { signal: 'sell', confidence: 83, reason: `Bearish RSI divergence — price HH but RSI ${lastR.toFixed(1)} weakening` };
+      if (bullDiv) return { signal: 'buy',  confidence: 83, reason: `Bullish RSI divergence — price LL but RSI ${lastR.toFixed(1)} recovering` };
+      if (hidBull) return { signal: 'buy',  confidence: 62, reason: 'Hidden bullish divergence — uptrend continuation' };
+      if (hidBear) return { signal: 'sell', confidence: 62, reason: 'Hidden bearish divergence — downtrend continuation' };
+      return { signal: 'neutral', confidence: 40, reason: `No RSI divergence (RSI: ${lastR.toFixed(1)})` };
+    }
+  },
+
+  // 11. Candlestick Confirmation
+  {
+    id: 'candle_confirm',
+    name: 'Candlestick Confirmation',
+    category: 'Price Action',
+    weight: 9,
+    analyze(candles) {
+      if (candles.length < 4) return { signal: 'neutral', confidence: 0, reason: 'Insufficient data' };
+      const c0 = candles[candles.length - 1];
+      const c1 = candles[candles.length - 2];
+      const c2 = candles[candles.length - 3];
+      const body0 = Math.abs(c0.close - c0.open);
+      const range0 = c0.high - c0.low || 0.01;
+      const body1 = Math.abs(c1.close - c1.open);
+      const upperW = c0.high - Math.max(c0.open, c0.close);
+      const lowerW = Math.min(c0.open, c0.close) - c0.low;
+      const bull0 = c0.close > c0.open, bear0 = c0.close < c0.open;
+      const bull1 = c1.close > c1.open, bear1 = c1.close < c1.open;
+      const bullPin   = lowerW >= range0 * 0.6 && body0 <= range0 * 0.3 && lowerW > upperW * 2;
+      const bearPin   = upperW >= range0 * 0.6 && body0 <= range0 * 0.3 && upperW > lowerW * 2;
+      const bullEngulf = bull0 && bear1 && c0.close > c1.open && c0.open < c1.close && body0 > body1 * 1.1;
+      const bearEngulf = bear0 && bull1 && c0.close < c1.open && c0.open > c1.close && body0 > body1 * 1.1;
+      const bear2 = c2.close < c2.open, bull2 = c2.close > c2.open;
+      const morningStar = bear2 && Math.abs(c2.close-c2.open) > (c2.high-c2.low)*0.5 && bull0 && body0 > range0*0.4;
+      const eveningStar = bull2 && Math.abs(c2.close-c2.open) > (c2.high-c2.low)*0.5 && bear0 && body0 > range0*0.4;
+      if (bullPin)     return { signal: 'buy',  confidence: 81, reason: `Bullish pin bar — ${(lowerW/range0*100).toFixed(0)}% lower wick rejection` };
+      if (bearPin)     return { signal: 'sell', confidence: 81, reason: `Bearish pin bar — ${(upperW/range0*100).toFixed(0)}% upper wick rejection` };
+      if (bullEngulf)  return { signal: 'buy',  confidence: 78, reason: 'Bullish engulfing — reversal candle' };
+      if (bearEngulf)  return { signal: 'sell', confidence: 78, reason: 'Bearish engulfing — reversal candle' };
+      if (morningStar) return { signal: 'buy',  confidence: 74, reason: 'Morning star — 3-candle bullish reversal' };
+      if (eveningStar) return { signal: 'sell', confidence: 74, reason: 'Evening star — 3-candle bearish reversal' };
+      if (body0 < range0 * 0.1) return { signal: 'neutral', confidence: 55, reason: 'Doji — indecision' };
+      if (bull0 && body0 > range0 * 0.6) return { signal: 'buy',  confidence: 57, reason: `Strong bull candle (${(body0/range0*100).toFixed(0)}% body)` };
+      if (bear0 && body0 > range0 * 0.6) return { signal: 'sell', confidence: 57, reason: `Strong bear candle (${(body0/range0*100).toFixed(0)}% body)` };
+      return { signal: 'neutral', confidence: 40, reason: 'No significant candlestick pattern' };
+    }
+  },
+
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────

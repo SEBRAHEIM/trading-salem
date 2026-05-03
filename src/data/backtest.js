@@ -162,29 +162,24 @@ export function computeRiskParams(candles, signal, confidence, interval = '15min
   const price = last.close;
   const isBuy = signal === 'BUY';
 
-  // ─── Structural SL Placement (Swing-Based) ───────────────────────────────────
-  // XAU/USD moves $3-$8 per 15m candle. SL must sit WELL outside noise.
-  // Lookback: last 20 candles (~5 hours on 15m) for a proper structural swing.
-  const swingLookback = 20;
+  // ─── Structural SL: 100-candle swing (~25 hours = daily S/R levels) ────────────
+  // 20 candles (5h) was noise. 100 candles captures real institutional levels.
+  const swingLookback = Math.min(100, candles.length - 1);
   const recentCandles = candles.slice(-swingLookback);
   const swingHigh = Math.max(...recentCandles.map(c => c.high));
   const swingLow  = Math.min(...recentCandles.map(c => c.low));
 
-  // Buffer = 0.5× ATR beyond swing (gives real breathing room vs 0.3x before)
-  const buffer = avgATR * 0.5;
+  // Buffer: 0.3× ATR beyond swing (structural but not over-extended)
+  const buffer = avgATR * 0.3;
   let structuralSl = isBuy
     ? swingLow  - buffer  // BUY: SL below swing low
     : swingHigh + buffer; // SELL: SL above swing high
 
   let slDistance = Math.abs(price - structuralSl);
 
-  // ─── SL Distance Guardrails ──────────────────────────────────────────────────
-  // MINIMUM: 2.0× ATR — XAU/USD noise requires at least $6-$16 of room
-  // (Old 1.5x was too tight — market noise alone triggered stops)
-  const minSlDistance = avgATR * 2.0;
-
-  // MAXIMUM: 3.5× ATR — cap to maintain acceptable R:R on wide-range days
-  const maxSlDistance = avgATR * 3.5;
+  // ─── SL Guardrails ───────────────────────────────────────────────────────────────
+  const minSlDistance = avgATR * 1.5;   // Never tighter than 1.5× ATR
+  const maxSlDistance = avgATR * 4.0;   // Never wider than 4× ATR
 
   if (slDistance < minSlDistance) {
     structuralSl = isBuy ? price - minSlDistance : price + minSlDistance;
@@ -195,15 +190,21 @@ export function computeRiskParams(candles, signal, confidence, interval = '15min
   const stopLoss = +structuralSl.toFixed(2);
   const actualSlDistance = Math.abs(price - stopLoss);
 
-  // ─── Take Profit Levels ───────────────────────────────────────────────────────
-  // TP1: 1.5× SL distance — minimum 1:1.5 R:R (widened SL means TP is also wider)
-  // TP2: 3.5× SL distance on 15m — runner target
-  const tfMult = { '1min': 2.0, '5min': 2.5, '15min': 3.5, '30min': 4.0, '1h': 5.0, '4h': 6.0, '1day': 7.0 }[interval] || 3.5;
+  // ─── Take Profit Levels ───────────────────────────────────────────────────────────────
+  // TP1: 1.5× SL — partial close, then move SL to breakeven
+  // TP2: 3.0× SL — final target for clean 1:3 R:R
+  const tfMult = { '1min': 2.0, '5min': 2.5, '15min': 3.0, '30min': 3.5, '1h': 4.0, '4h': 5.0, '1day': 6.0 }[interval] || 3.0;
 
   const takeProfit1 = isBuy ? price + (actualSlDistance * 1.5) : price - (actualSlDistance * 1.5);
   const takeProfit2 = isBuy ? price + (actualSlDistance * tfMult) : price - (actualSlDistance * tfMult);
 
-  const riskReward = Math.abs(takeProfit2 - price) / actualSlDistance;
+  const rrTP2 = Math.abs(takeProfit2 - price) / actualSlDistance;
+
+  // ─── R:R Gate ──────────────────────────────────────────────────────────────────────
+  // If TP2 R:R < 1.5, the trade setup is not worth taking. cron gates on this.
+  const meetsMinRR = rrTP2 >= 1.5;
+
+  const riskReward = rrTP2;
 
   const volatilityPct = (avgATR / price) * 100;
   const pipScale = 1; // XAU/USD: 1 pip = $1.00
@@ -215,6 +216,7 @@ export function computeRiskParams(candles, signal, confidence, interval = '15min
     takeProfit1:   +takeProfit1.toFixed(dp),
     takeProfit2:   +takeProfit2.toFixed(dp),
     riskReward:    +riskReward.toFixed(1),
+    meetsMinRR,                              // ← cron gates on this
     atr:           +avgATR.toFixed(dp),
     volatilityPct: +volatilityPct.toFixed(3),
     highVolatility: volatilityPct > 0.8,
@@ -224,6 +226,7 @@ export function computeRiskParams(candles, signal, confidence, interval = '15min
     timeframe:     interval,
     swingHigh:     +swingHigh.toFixed(dp),
     swingLow:      +swingLow.toFixed(dp),
+    swingLookback,
   };
 }
 

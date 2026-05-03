@@ -223,7 +223,12 @@ export default async function handler(req, res) {
       if (isBuy) {
         if (lastClose >= t.tp1 && !t.hitTp1) {
           t.hitTp1 = true; stateChanged = true;
-          await sendTG(`🟢 <b>TP1 HIT!</b>\n\n<b>Asset:</b> XAU/USD\n<b>Price:</b> ${lastClose}\n<b>TP1:</b> ${t.tp1}\n<b>Entry:</b> ${t.entry}\n<b>Pips:</b> +${(lastClose - t.entry).toFixed(1)}`);
+          // ─── Move SL to breakeven after TP1 hit ────────────────────────────
+          if (!t.breakevenMoved) {
+            t.sl = t.entry;   // SL → entry = you can never lose this trade now
+            t.breakevenMoved = true;
+          }
+          await sendTG(`🟢 <b>TP1 HIT!</b>\n\n<b>Asset:</b> XAU/USD\n<b>Price:</b> ${lastClose}\n<b>TP1:</b> ${t.tp1}\n<b>Entry:</b> ${t.entry}\n<b>Pips:</b> +${(lastClose - t.entry).toFixed(1)}\n\n🔒 <b>SL moved to breakeven</b> — trade is now risk-free`);
         }
         if (lastClose >= t.tp2 && !t.hitTp2 && t.hitTp1) {
           t.hitTp2 = true; closeResult = 'TP2';
@@ -237,7 +242,11 @@ export default async function handler(req, res) {
       } else { // SELL
         if (lastClose <= t.tp1 && !t.hitTp1) {
           t.hitTp1 = true; stateChanged = true;
-          await sendTG(`🟢 <b>TP1 HIT!</b>\n\n<b>Asset:</b> XAU/USD\n<b>Price:</b> ${lastClose}\n<b>TP1:</b> ${t.tp1}\n<b>Entry:</b> ${t.entry}\n<b>Pips:</b> +${(t.entry - lastClose).toFixed(1)}`);
+          if (!t.breakevenMoved) {
+            t.sl = t.entry;   // SL → entry = risk-free
+            t.breakevenMoved = true;
+          }
+          await sendTG(`🟢 <b>TP1 HIT!</b>\n\n<b>Asset:</b> XAU/USD\n<b>Price:</b> ${lastClose}\n<b>TP1:</b> ${t.tp1}\n<b>Entry:</b> ${t.entry}\n<b>Pips:</b> +${(t.entry - lastClose).toFixed(1)}\n\n🔒 <b>SL moved to breakeven</b> — trade is now risk-free`);
         }
         if (lastClose <= t.tp2 && !t.hitTp2 && t.hitTp1) {
           t.hitTp2 = true; closeResult = 'TP2';
@@ -304,13 +313,21 @@ export default async function handler(req, res) {
           const allResults = runAllStrategies(candles);
           const agg = aggregateSignals(allResults, state.lastSignal);
 
-          if (agg.thresholdMet && agg.finalSignal !== 'NO TRADE') {
+        if (agg.thresholdMet && agg.finalSignal !== 'NO TRADE') {
             const risk = computeRiskParams(candles, agg.finalSignal, agg.finalConfidence, '15min');
+
+            // ─── R:R Gate: skip if setup doesn't offer minimum 1.5 R:R ──────────
+            if (!risk.meetsMinRR) {
+              skipReason = `R:R too low (${risk.riskReward}x) — minimum 1.5x required. Skipping.`;
+              console.log('[CRON] Trade skipped:', skipReason);
+            } else {
             state.openTrade = {
               id: Date.now(), pair: 'XAU/USD', direction: agg.finalSignal,
               confidence: agg.finalConfidence, openTime: new Date().toISOString(),
               entry: risk.entry, sl: risk.stopLoss, tp1: risk.takeProfit1,
               tp2: risk.takeProfit2, riskReward: risk.riskReward,
+              originalSl: risk.stopLoss,   // ← keep original for reference
+              breakevenMoved: false,        // ← tracks if SL moved to breakeven
               newsContext: newsData.headlines.slice(0, 3).join(' | '),
               whaleSentiment: whaleData?.sentiment || 'neutral',
             };
@@ -328,7 +345,7 @@ export default async function handler(req, res) {
 
             await sendTG(
               `🚨 <b>${agg.finalSignal} XAU/USD</b>\n` +
-              `⚠️ <b>${agg.riskLevel}</b>\n\n` +
+              `⚠️ <b>${agg.riskLevel}</b> | R:R ${risk.riskReward}x\n\n` +
               `Entry price: ${risk.entry}\n` +
               `TP1: ${risk.takeProfit1}\n` +
               `TP2: ${risk.takeProfit2}\n` +
@@ -336,6 +353,7 @@ export default async function handler(req, res) {
               confluenceLines +
               whaleNote
             );
+            } // end meetsMinRR
           }
         }
       }
