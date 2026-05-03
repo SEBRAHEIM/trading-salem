@@ -40,8 +40,8 @@
   --t: 0s;
 }
 
-html, body { height: 100%; font-family: var(--mono); background: var(--bg-base); color: var(--text-primary); overflow: hidden; letter-spacing: -0.5px;}
-#app { height: 100vh; display: flex; flex-direction: column; text-transform: uppercase; font-size: 11px; }
+html, body { min-height: 100%; font-family: var(--mono); background: var(--bg-base); color: var(--text-primary); overflow-x: hidden; overflow-y: auto; letter-spacing: -0.5px; -webkit-overflow-scrolling: touch; }
+#app { min-height: 100vh; display: flex; flex-direction: column; text-transform: uppercase; font-size: 11px; }
 
 ::-webkit-scrollbar { width: 3px; height: 3px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -124,8 +124,8 @@ select option { background: var(--bg-card); }
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
 
 /* ── Main layout ─────────────────────────────────────────────────────── */
-.main-layout { display: flex; flex: 1; overflow: auto; min-height: 0; }
-.panel { display: none; flex: 1; min-height: 0; }
+.main-layout { display: flex; flex: 1; min-height: 500px; overflow: visible; }
+.panel { display: none; flex: 1; }
 .panel.active { display: flex; }
 
 /* ── Dashboard panels ────────────────────────────────────────────────── */
@@ -169,7 +169,7 @@ select option { background: var(--bg-card); }
 /* ── Signal column ───────────────────────────────────────────────────── */
 .col-signal {
   width: 380px; flex-shrink: 0; display: flex; flex-direction: column;
-  overflow-y: auto; background: var(--bg-base);
+  overflow-y: visible; background: var(--bg-base);
 }
 
 /* ── Signal hero ─────────────────────────────────────────────────────── */
@@ -368,10 +368,10 @@ select option { background: var(--bg-card); }
   .btn { height: 26px; padding: 0 8px; font-size: 10px; }
   .api-key-wrap { display: none; }
   
-  .main-layout { overflow-y: auto; overflow-x: hidden; display: block; }
+  .main-layout { overflow: visible; display: block; min-height: auto; }
   #panel-dashboard { display: block; }
   
-  .col-chart { height: 35vh; min-height: 250px; border-right: none; border-bottom: 1px solid var(--bg-border); }
+  .col-chart { height: 40vh; min-height: 250px; border-right: none; border-bottom: 1px solid var(--bg-border); }
   .chart-header { padding: 6px 10px; gap: 8px; flex-wrap: wrap; }
   .price-main { font-size: 20px; }
   
