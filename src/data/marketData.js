@@ -1,7 +1,7 @@
 /**
  * Market Data Service
  * - /api/price  → TradingView's public quote (same price as the embedded chart)
- * - /api/candles → Yahoo Finance or Twelve Data OHLCV (server-side, no CORS)
+ * - /api/candles → Yahoo Finance OHLCV (server-side, no CORS)
  * When Yahoo Finance is rate-limited, generates synthetic candles anchored
  * to the REAL TradingView quote price so strategies run at the correct level.
  */
@@ -16,13 +16,13 @@ const cache     = new Map();
 const priceCache = new Map();  // current-price cache (10s TTL)
 
 // ─── Fetch current price from TradingView (same source as the TV chart) ───────
-export async function fetchLivePrice(pair, apiKey = '') {
+export async function fetchLivePrice(pair) {
   const cached = priceCache.get(pair);
   if (cached && Date.now() - cached.ts < 10_000) return cached.data;
 
   try {
     const params = new URLSearchParams({ pair });
-    if (apiKey) params.set('apikey', apiKey);
+
     const res  = await fetch(`/api/price?${params}`, { signal: AbortSignal.timeout(6000) });
     const json = await res.json();
     if (json.error) throw new Error(json.error);
@@ -34,7 +34,7 @@ export async function fetchLivePrice(pair, apiKey = '') {
 }
 
 // ─── Fetch OHLCV candles ──────────────────────────────────────────────────────
-export async function fetchCandles(pair, interval, count = 300, apiKey = '') {
+export async function fetchCandles(pair, interval, count = 300) {
   const cacheKey = `${pair}-${interval}`;
   const cached   = cache.get(cacheKey);
 
@@ -43,7 +43,7 @@ export async function fetchCandles(pair, interval, count = 300, apiKey = '') {
 
   // Build params
   const params = new URLSearchParams({ pair, interval });
-  if (apiKey && apiKey.length > 8) params.set('apikey', apiKey);
+
 
   try {
     const res  = await fetch(`/api/candles?${params}`, { signal: AbortSignal.timeout(15_000) });

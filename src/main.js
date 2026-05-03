@@ -62,13 +62,6 @@ document.getElementById('app').innerHTML = `
     </div>
 
       <div class="header-right">
-      <div class="api-key-wrap" id="api-key-wrap" title="Enter your free Twelve Data API key for live strategy data">
-        <span class="api-key-icon">🔑</span>
-        <input id="api-key-input" class="api-input" type="text"
-          placeholder="Twelve Data key → live signals"
-          autocomplete="off" spellcheck="false" />
-        <a href="https://twelvedata.com/pricing" target="_blank" class="api-key-link">Free key</a>
-      </div>
       <div class="live-badge" id="live-badge"><div class="live-dot"></div>LIVE</div>
       <button class="btn btn-primary" id="refresh-btn">↺ Refresh</button>
     </div>
@@ -342,15 +335,7 @@ document.addEventListener('click', e => {
 });
 
 // API key — triggers a reload with live data when entered
-const apiKeyEl = document.getElementById('api-key-input');
-const savedKey = localStorage.getItem('tdApiKey') || '';
-if (savedKey) { apiKeyEl.value = savedKey; state.apiKey = savedKey; }
 
-apiKeyEl.addEventListener('change', () => {
-  state.apiKey = apiKeyEl.value.trim();
-  localStorage.setItem('tdApiKey', state.apiKey);
-  loadAndAnalyze(); // reload with new key
-});
 
 // ─── Load & Analyze ───────────────────────────────────────────────────────────
 async function loadAndAnalyze() {
@@ -369,7 +354,7 @@ async function loadAndAnalyze() {
       fetchLiveWhalesAPI(state.pair).catch(e => console.warn('Whales API unavailable', e));
     }
 
-    const candles = await fetchCandles(state.pair, state.interval, 300, state.apiKey || '');
+    const candles = await fetchCandles(state.pair, state.interval, 300);
     state.candles = candles;
     state.isSynthetic = candles[0]?.synthetic ?? true;
 
@@ -383,7 +368,7 @@ async function loadAndAnalyze() {
     // ── Live price ticker from TradingView quote (same source as embedded chart) ──
     // Updates every 5s so the header price always matches what the TV chart shows
     state.liveInterval = setInterval(async () => {
-      const quote = await fetchLivePrice(state.pair, state.apiKey || '');
+      const quote = await fetchLivePrice(state.pair);
       if (quote?.price && state.candles.length) {
         // Patch last candle with real current price
         const last = state.candles[state.candles.length - 1];
@@ -402,7 +387,7 @@ async function loadAndAnalyze() {
     // Re-analyze every 30s with fresh Yahoo Finance data when available
     state.analysisInterval = setInterval(async () => {
       try {
-        const fresh = await fetchCandles(state.pair, state.interval, 300, state.apiKey || '');
+        const fresh = await fetchCandles(state.pair, state.interval, 300);
         if (fresh.length && !fresh[0]?.synthetic) {
           state.candles    = fresh;
           state.isSynthetic = false;
