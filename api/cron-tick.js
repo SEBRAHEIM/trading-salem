@@ -4,19 +4,19 @@
  * State persists via jsonblob.com (free, no auth).
  * Monitors XAU/USD (Gold) only.
  *
- * v2 — Macro-aware upgrade:
- *   - Live news injected into strategy context every tick
- *   - Economic calendar check blocks entries before high-impact events
- *   - Session filter: no new signals during dead zones (00:00–02:30 UTC, 21:00–23:59 UTC)
- *   - Drawdown protection: pause new entries if equity drops >5% from peak
- *   - Whale data remapped from GLD→XAU/USD sentiment (no longer misused as price levels)
+ * v3 — Clean signal engine:
+ *   - NO news fetching, NO news broadcasting
+ *   - Session filter: weekends only (market closure)
+ *   - Drawdown protection: pause if equity drops >5% from peak
+ *   - 4-hour cooldown between trades
+ *   - TP1 only exits (1:2 R:R)
  */
 const TELEGRAM_BOT_TOKEN = '8643381958:AAGUT_9Q_lSj_29Y2lfPRJNzG9TzlmhqReM';
 const TELEGRAM_TARGETS = [
   '6732836566',          // Personal DM
   '-1003752467954'       // Group: @chatbotsallem
 ];
-const UW_API_KEY = "d9dc6e61-6157-4070-af00-2f868fd5dc27";
+const UW_API_KEY = "019df1e9-9a6d-7185-8c96-46d0165e0f9a";
 const PAPER_START = 150;
 const PAPER_RISK_PCT = 1.0;
 const STATE_URL = 'https://jsonblob.com/api/jsonBlob/019decaf-f536-7e6e-a0a5-e64f65a8b46b';
@@ -35,7 +35,7 @@ async function loadState() {
     const r = await fetch(STATE_URL, { headers: { 'Accept': 'application/json' } });
     if (r.ok) return await r.json();
   } catch (e) { console.log('[STATE] Load error:', e.message); }
-  return { equity: PAPER_START, peakEquity: PAPER_START, startEquity: PAPER_START, startDate: new Date().toISOString().slice(0,10), trades: [], openTrade: null, lastSignal: null, lastSignalTime: null, seenHeadlines: [] };
+  return { equity: PAPER_START, peakEquity: PAPER_START, startEquity: PAPER_START, startDate: new Date().toISOString().slice(0,10), trades: [], openTrade: null, lastSignal: null, lastSignalTime: null };
 }
 
 async function saveState(state) {
@@ -61,56 +61,6 @@ async function sendTG(text) {
       )
     );
   } catch (e) { console.error('[TG]', e.message); }
-}
-
-// ─── News Broadcaster ────────────────────────────────────────────────────────
-// Sends Telegram alerts ONLY for headlines not seen before.
-// Returns list of new headlines so they can be persisted to state.
-async function broadcastNewHeadlines(newsData, seenHeadlines = []) {
-  const allHeadlines = newsData.headlines || [];
-  const upcomingEvents = newsData.upcomingEvents || [];
-
-  // Find headlines not yet seen (exact match dedup)
-  const seenSet = new Set(seenHeadlines);
-  const newHeadlines = allHeadlines.filter(h => !seenSet.has(h));
-
-  // ─── 1. High-impact economic event alert (urgent) ─────────────────────────
-  if (upcomingEvents.length > 0) {
-    const eventLines = upcomingEvents.map(e =>
-      `⚡️ <b>${e.title}</b> (${e.currency}) — in ~${Math.round((new Date(e.date) - Date.now()) / 60000)} min`
-    ).join('\n');
-    await sendTG(
-      `🚨 <b>HIGH-IMPACT EVENT INCOMING</b>\n\n${eventLines}\n\n⚠️ Trading paused until event clears.`
-    );
-  }
-
-  // ─── 2. New market headlines ───────────────────────────────────────────────
-  if (newHeadlines.length > 0) {
-    // Group into batches of 8 to avoid Telegram message length limits
-    const BATCH = 8;
-    for (let i = 0; i < newHeadlines.length; i += BATCH) {
-      const batch = newHeadlines.slice(i, i + BATCH);
-      const lines = batch.map((h, idx) => `${i + idx + 1}. ${h}`).join('\n');
-      await sendTG(`📰 <b>MARKET NEWS UPDATE</b>\n\n${lines}\n\n<i>Source: Reuters / Yahoo Finance / CNBC</i>`);
-    }
-  }
-
-  // Return the merged unique set (capped at 50 to keep state small)
-  return [...new Set([...seenHeadlines, ...newHeadlines])].slice(-50);
-}
-
-// ─── News Feed ───────────────────────────────────────────────────────────────
-async function fetchNews(host, proto) {
-  try {
-    const r = await fetch(`${proto}://${host}/api/news?pair=XAU/USD`, {
-      signal: AbortSignal.timeout(8000)
-    });
-    if (!r.ok) return { headlines: [], isHighImpactWindow: false, highImpactReason: null };
-    return await r.json();
-  } catch (e) {
-    console.log('[NEWS] Fetch failed:', e.message);
-    return { headlines: [], isHighImpactWindow: false, highImpactReason: null };
-  }
 }
 
 // ─── Whale Data (GLD → Directional Sentiment, NOT price levels) ──────────────
@@ -171,9 +121,8 @@ export default async function handler(req, res) {
     const lastClose = candles[candles.length - 1].close;
 
     // 2. Load state + news + whale data in parallel
-    const [state, newsData, whaleData] = await Promise.all([
+    const [state, whaleData] = await Promise.all([
       loadState(),
-      fetchNews(host, proto),
       fetchWhaleData()
     ]);
 
@@ -186,21 +135,7 @@ export default async function handler(req, res) {
     const { runAllStrategies, aggregateSignals, strategyContext } = await import('../src/strategies/strategies.js');
     const { computeRiskParams } = await import('../src/data/backtest.js');
 
-    // ─── INJECT LIVE NEWS INTO STRATEGY CONTEXT ──────────────────────────────
-    strategyContext.headlines = newsData.headlines || [];
-
-    // ─── BROADCAST NEW HEADLINES TO TELEGRAM ─────────────────────────────────
-    // Only fires for headlines not seen on a previous tick — no spam.
-    let stateChanged = false;
-    if (newsData.headlines && newsData.headlines.length > 0) {
-      state.seenHeadlines = state.seenHeadlines || [];
-      const updatedSeen = await broadcastNewHeadlines(newsData, state.seenHeadlines);
-      if (updatedSeen.length !== state.seenHeadlines.length) {
-        state.seenHeadlines = updatedSeen;
-        stateChanged = true;
-      }
-    }
-
+    
     // ─── INJECT WHALE SENTIMENT (directional, not price levels) ──────────────
     if (whaleData && whaleData.active) {
       strategyContext.whaleSentiment = whaleData.sentiment;
@@ -286,11 +221,7 @@ export default async function handler(req, res) {
         skipReason = 'Forex market closed (weekend)';
       }
 
-      // ─── GATE 2: High-impact news event window ───────────────────────────────
-      else if (newsData.isHighImpactWindow) {
-        skipReason = `High-impact news imminent: ${newsData.highImpactReason}`;
-        console.log('[CRON] Signal blocked:', skipReason);
-      }
+      // ─── GATE 2 (news gate removed)
 
       // ─── GATE 3: Drawdown protection ─────────────────────────────────────────
       else if (isInDrawdown(state)) {
@@ -324,9 +255,7 @@ export default async function handler(req, res) {
               entry: risk.entry, sl: risk.stopLoss, tp1: risk.takeProfit1, riskReward: risk.riskReward,
               originalSl: risk.stopLoss,   // ← keep original for reference
               breakevenMoved: false,        // ← tracks if SL moved to breakeven
-              newsContext: newsData.headlines.slice(0, 3).join(' | '),
-              whaleSentiment: whaleData?.sentiment || 'neutral',
-            };
+              newsContext: [];
             state.lastSignal = agg.finalSignal;
             state.lastSignalTime = new Date().toISOString();
             stateChanged = true;
@@ -353,12 +282,7 @@ export default async function handler(req, res) {
       open: state.openTrade ? `${state.openTrade.direction} @ ${state.openTrade.entry}` : null,
       trades: state.trades.length,
       skipReason,
-      newsHeadlines: newsData.headlines.length,
-      isHighImpactWindow: newsData.isHighImpactWindow,
-      whaleSentiment: whaleData?.sentiment || 'unavailable',
-      session: isInTradingSession(),
-      drawdownActive: isInDrawdown(state),
-    });
+      newsHeadlines: [];
   } catch (err) {
     console.error('[TICK]', err);
     return res.status(500).json({ error: err.message });
