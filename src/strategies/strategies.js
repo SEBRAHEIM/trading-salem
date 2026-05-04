@@ -285,36 +285,51 @@ export const STRATEGIES = [
     }
   },
 
-  // 9. News Sentiment — reads live headlines for macro catalyst
+  // 9. ATR Volatility Regime Filter
+  //    Too quiet (spread kills you) or too explosive (stop hunt risk) -> NEUTRAL
+  //    Sweet spot: reads momentum direction from recent candles
   {
-    id: 'news_sentiment',
-    name: 'Macro News Sentiment',
-    category: 'Sentiment',
-    weight: 7,
+    id: 'atr_volatility',
+    name: 'ATR Volatility Regime',
+    category: 'Volatility',
+    weight: 8,
     analyze(candles) {
-      const headlines = strategyContext.headlines || [];
-      if (!headlines.length) return { signal: 'neutral', confidence: 0, reason: 'No headlines loaded' };
-      const text  = headlines.join(' ').toLowerCase();
-      let bull = 0, bear = 0, keys = [];
-      const bullKW = [
-        { w: 'war', v: 5 }, { w: 'escalat', v: 4 }, { w: 'tension', v: 4 },
-        { w: 'iran', v: 5 }, { w: 'conflict', v: 4 }, { w: 'crisis', v: 4 },
-        { w: 'crash', v: 5 }, { w: 'panic', v: 5 }, { w: 'collapse', v: 5 },
-        { w: 'dovish', v: 3 }, { w: 'cut rate', v: 4 }, { w: 'stimulus', v: 4 },
-        { w: 'qe', v: 4 }, { w: 'inflation', v: 3 }, { w: 'default', v: 4 },
-      ];
-      const bearKW = [
-        { w: 'ceasefire', v: 5 }, { w: 'peace', v: 4 }, { w: 'truce', v: 4 },
-        { w: 'hawkish', v: 3 }, { w: 'hike rate', v: 4 }, { w: 'strong dollar', v: 4 },
-        { w: 'recovery', v: 3 }, { w: 'resilient', v: 3 }, { w: 'beat expectations', v: 3 },
-      ];
-      bullKW.forEach(k => { if (text.includes(k.w)) { bull += k.v; keys.push(k.w); } });
-      bearKW.forEach(k => { if (text.includes(k.w)) { bear += k.v; keys.push(k.w); } });
-      const total = bull + bear;
-      if (total < 3) return { signal: 'neutral', confidence: 48, reason: 'No significant macro catalysts detected' };
-      const isBull = bull > bear;
-      const conf   = Math.min(88, 60 + Math.abs(bull - bear) * 5);
-      return { signal: isBull ? 'buy' : 'sell', confidence: Math.round(conf), reason: `${isBull ? 'Risk-off' : 'Risk-on'} news: [${keys.join(', ')}]` };
+      if (candles.length < 60) return { signal: 'neutral', confidence: 0, reason: 'Insufficient candles' };
+
+      // Compute ATR(14) for every bar
+      const atrVals = [];
+      for (let i = 1; i < candles.length; i++) {
+        const p = candles[i - 1], c = candles[i];
+        atrVals.push(Math.max(c.high - c.low, Math.abs(c.high - p.close), Math.abs(c.low - p.close)));
+      }
+      const atr14 = [];
+      for (let i = 13; i < atrVals.length; i++) {
+        const s = atrVals.slice(i - 13, i + 1).reduce((a, v) => a + v, 0) / 14;
+        atr14.push(s);
+      }
+      if (atr14.length < 50) return { signal: 'neutral', confidence: 0, reason: 'Not enough ATR history' };
+
+      const curATR  = atr14[atr14.length - 1];
+      const avgATR  = atr14.slice(-50).reduce((a, v) => a + v, 0) / 50;
+      const ratio   = curATR / avgATR;
+
+      if (ratio < 0.55) return { signal: 'neutral', confidence: 55, reason: 'ATR too quiet (' + ratio.toFixed(2) + 'x) - spread risk' };
+      if (ratio > 2.5)  return { signal: 'neutral', confidence: 55, reason: 'ATR too explosive (' + ratio.toFixed(2) + 'x) - stop-hunt risk' };
+
+      const recent   = candles.slice(-8);
+      const delta    = recent[recent.length - 1].close - recent[0].close;
+      const atr8ago  = atr14[atr14.length - 9] ?? curATR;
+      const expanding = curATR > atr8ago * 1.05;
+      const conf     = expanding ? 75 : 62;
+      const tag      = 'ATR ' + ratio.toFixed(2) + 'x avg (' + (expanding ? 'expanding' : 'flat') + ')';
+
+      if (Math.abs(delta) < avgATR * 0.5) return { signal: 'neutral', confidence: 55, reason: tag + ' - momentum too small' };
+
+      return {
+        signal: delta > 0 ? 'buy' : 'sell',
+        confidence: conf,
+        reason: tag + ' - ' + (delta > 0 ? '+' : '') + delta.toFixed(1) + ' pts momentum'
+      };
     }
   },
 
