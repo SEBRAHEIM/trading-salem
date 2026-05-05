@@ -27,7 +27,7 @@ export async function fetchTradingViewCandles(pair, interval) {
     const tvSymbol = TV_SYMBOLS[pair] || 'OANDA:XAUUSD';
     const tvtf = TV_INTERVALS[interval] || '15';
 
-    chart.setMarket(tvSymbol, { timeframe: tvtf, range: 300 });
+    chart.setMarket(tvSymbol, { timeframe: tvtf, range: 5000 });
 
     chart.onUpdate(() => {
       if (handled) return;

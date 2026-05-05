@@ -7,7 +7,7 @@ export default async function handler(req, res) {
 
   try {
     const candles = await fetchTradingViewCandles(pair, tf);
-    return res.status(200).json({ source: 'tradingview', candles: candles.slice(-300) });
+    return res.status(200).json({ source: 'tradingview', candles });
   } catch (err) {
     console.warn('[Serverless] TradingView WebSocket failed:', err.message);
     return res.status(503).json({ error: 'TradingView source unavailable' });

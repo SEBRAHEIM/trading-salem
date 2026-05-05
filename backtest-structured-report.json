@@ -1,0 +1,115 @@
+{
+  "generatedAt": "2026-05-05T09:18:40.030Z",
+  "period": "5/5/2021 → 5/5/2026",
+  "candles": 1258,
+  "results": [
+    {
+      "label": "BASELINE  — SL:3.5x TP:2.0x Thresh:85% CD:4bars",
+      "cfg": {
+        "slMult": 3.5,
+        "tpMult": 2,
+        "threshold": 85,
+        "cooldownBars": 4
+      },
+      "trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "winRate": 0,
+      "profitFactor": 0,
+      "maxDrawdown": 0,
+      "totalPct": 0,
+      "endEquity": 10000,
+      "tradeList": []
+    },
+    {
+      "label": "ITER 1    — TP tighter: 2.0x → 1.2x",
+      "cfg": {
+        "slMult": 3.5,
+        "tpMult": 1.2,
+        "threshold": 85,
+        "cooldownBars": 4
+      },
+      "trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "winRate": 0,
+      "profitFactor": 0,
+      "maxDrawdown": 0,
+      "totalPct": 0,
+      "endEquity": 10000,
+      "tradeList": []
+    },
+    {
+      "label": "ITER 2    — Cooldown shorter: 4bars → 1bar",
+      "cfg": {
+        "slMult": 3.5,
+        "tpMult": 1.2,
+        "threshold": 85,
+        "cooldownBars": 1
+      },
+      "trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "winRate": 0,
+      "profitFactor": 0,
+      "maxDrawdown": 0,
+      "totalPct": 0,
+      "endEquity": 10000,
+      "tradeList": []
+    },
+    {
+      "label": "ITER 3    — Threshold lower: 85% → 75%",
+      "cfg": {
+        "slMult": 3.5,
+        "tpMult": 1.2,
+        "threshold": 75,
+        "cooldownBars": 1
+      },
+      "trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "winRate": 0,
+      "profitFactor": 0,
+      "maxDrawdown": 0,
+      "totalPct": 0,
+      "endEquity": 10000,
+      "tradeList": []
+    },
+    {
+      "label": "ITER 4    — SL tighter: 3.5x → 2.5x ATR",
+      "cfg": {
+        "slMult": 2.5,
+        "tpMult": 1.2,
+        "threshold": 75,
+        "cooldownBars": 1
+      },
+      "trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "winRate": 0,
+      "profitFactor": 0,
+      "maxDrawdown": 0,
+      "totalPct": 0,
+      "endEquity": 10000,
+      "tradeList": []
+    },
+    {
+      "label": "ITER 5    — OPTIMAL combo",
+      "cfg": {
+        "slMult": 2.8,
+        "tpMult": 1.5,
+        "threshold": 78,
+        "cooldownBars": 2
+      },
+      "trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "winRate": 0,
+      "profitFactor": 0,
+      "maxDrawdown": 0,
+      "totalPct": 0,
+      "endEquity": 10000,
+      "tradeList": []
+    }
+  ]
+}
