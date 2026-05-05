@@ -1,0 +1,496 @@
+{
+  "from": "2/17/2026",
+  "to": "5/5/2026",
+  "candles": 5001,
+  "maxBuy": 76.36363636363637,
+  "maxSell": 76.36363636363637,
+  "results": [
+    {
+      "label": "BASELINE   SL:3.5x TP:2.0x T:85% CD:16bars",
+      "cfg": {
+        "slMult": 3.5,
+        "tpMult": 2,
+        "threshold": 85,
+        "cooldownBars": 16
+      },
+      "trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "winRate": 0,
+      "profitFactor": 0,
+      "maxDrawdown": 0,
+      "totalPct": 0,
+      "endEquity": 10000,
+      "avgDuration": 0,
+      "bpDist": {
+        "5": 1,
+        "10": 15,
+        "15": 73,
+        "20": 148,
+        "25": 536,
+        "30": 311,
+        "35": 693,
+        "40": 868,
+        "45": 556,
+        "50": 1003,
+        "55": 209,
+        "60": 418,
+        "65": 13,
+        "70": 94,
+        "75": 3
+      },
+      "tradeList": []
+    },
+    {
+      "label": "ITER 1     Threshold: 85% → 65%",
+      "cfg": {
+        "slMult": 3.5,
+        "tpMult": 2,
+        "threshold": 65,
+        "cooldownBars": 16
+      },
+      "trades": 26,
+      "wins": 12,
+      "losses": 14,
+      "winRate": 46.2,
+      "profitFactor": 1.69,
+      "maxDrawdown": 4,
+      "totalPct": 10.18,
+      "endEquity": 11017.82,
+      "avgDuration": 66,
+      "bpDist": {
+        "0": 27,
+        "5": 1,
+        "10": 11,
+        "15": 41,
+        "20": 76,
+        "25": 320,
+        "30": 194,
+        "35": 439,
+        "40": 598,
+        "45": 281,
+        "50": 572,
+        "55": 98,
+        "60": 173,
+        "70": 2
+      },
+      "tradeList": [
+        {
+          "i": 4296,
+          "dir": "SELL",
+          "entry": 4744.1,
+          "result": "TP1",
+          "pnl": 207.7,
+          "duration": 105,
+          "eq": 10593.14
+        },
+        {
+          "i": 4363,
+          "dir": "SELL",
+          "entry": 4678.9,
+          "result": "SL",
+          "pnl": -105.93,
+          "duration": 3,
+          "eq": 10487.21
+        },
+        {
+          "i": 4414,
+          "dir": "SELL",
+          "entry": 4680.91,
+          "result": "SL",
+          "pnl": -104.87,
+          "duration": 3,
+          "eq": 10382.34
+        },
+        {
+          "i": 4524,
+          "dir": "SELL",
+          "entry": 4692.79,
+          "result": "TP1",
+          "pnl": 207.64,
+          "duration": 58,
+          "eq": 10589.98
+        },
+        {
+          "i": 4645,
+          "dir": "SELL",
+          "entry": 4613.32,
+          "result": "TP1",
+          "pnl": 211.8,
+          "duration": 101,
+          "eq": 10801.78
+        },
+        {
+          "i": 4931,
+          "dir": "SELL",
+          "entry": 4588.28,
+          "result": "TP1",
+          "pnl": 216.04,
+          "duration": 31,
+          "eq": 11017.82
+        }
+      ]
+    },
+    {
+      "label": "ITER 2     TP: 2.0x → 1.2x SL",
+      "cfg": {
+        "slMult": 3.5,
+        "tpMult": 1.2,
+        "threshold": 65,
+        "cooldownBars": 16
+      },
+      "trades": 33,
+      "wins": 16,
+      "losses": 17,
+      "winRate": 48.5,
+      "profitFactor": 1.12,
+      "maxDrawdown": 4.36,
+      "totalPct": 2.02,
+      "endEquity": 10202.05,
+      "avgDuration": 37,
+      "bpDist": {
+        "0": 34,
+        "5": 1,
+        "10": 11,
+        "15": 49,
+        "20": 85,
+        "25": 374,
+        "30": 217,
+        "35": 493,
+        "40": 645,
+        "45": 330,
+        "50": 647,
+        "55": 117,
+        "60": 208,
+        "70": 2
+      },
+      "tradeList": [
+        {
+          "i": 4363,
+          "dir": "SELL",
+          "entry": 4678.9,
+          "result": "SL",
+          "pnl": -99.24,
+          "duration": 3,
+          "eq": 9824.95
+        },
+        {
+          "i": 4414,
+          "dir": "SELL",
+          "entry": 4680.91,
+          "result": "SL",
+          "pnl": -98.25,
+          "duration": 3,
+          "eq": 9726.7
+        },
+        {
+          "i": 4522,
+          "dir": "SELL",
+          "entry": 4692.79,
+          "result": "TP1",
+          "pnl": 116.72,
+          "duration": 56,
+          "eq": 9843.42
+        },
+        {
+          "i": 4548,
+          "dir": "SELL",
+          "entry": 4613.32,
+          "result": "TP1",
+          "pnl": 118.12,
+          "duration": 4,
+          "eq": 9961.54
+        },
+        {
+          "i": 4648,
+          "dir": "SELL",
+          "entry": 4565.77,
+          "result": "TP1",
+          "pnl": 119.54,
+          "duration": 17,
+          "eq": 10081.08
+        },
+        {
+          "i": 4910,
+          "dir": "SELL",
+          "entry": 4588.28,
+          "result": "TP1",
+          "pnl": 120.97,
+          "duration": 10,
+          "eq": 10202.05
+        }
+      ]
+    },
+    {
+      "label": "ITER 3     Cooldown: 16bars → 6bars (90min)",
+      "cfg": {
+        "slMult": 3.5,
+        "tpMult": 1.2,
+        "threshold": 65,
+        "cooldownBars": 6
+      },
+      "trades": 37,
+      "wins": 19,
+      "losses": 18,
+      "winRate": 51.4,
+      "profitFactor": 1.26,
+      "maxDrawdown": 4.18,
+      "totalPct": 4.68,
+      "endEquity": 10467.95,
+      "avgDuration": 37,
+      "bpDist": {
+        "0": 38,
+        "5": 1,
+        "10": 11,
+        "15": 51,
+        "20": 90,
+        "25": 382,
+        "30": 230,
+        "35": 496,
+        "40": 668,
+        "45": 343,
+        "50": 695,
+        "55": 116,
+        "60": 234,
+        "70": 2
+      },
+      "tradeList": [
+        {
+          "i": 4363,
+          "dir": "SELL",
+          "entry": 4678.9,
+          "result": "SL",
+          "pnl": -101.83,
+          "duration": 3,
+          "eq": 10081.02
+        },
+        {
+          "i": 4414,
+          "dir": "SELL",
+          "entry": 4680.91,
+          "result": "SL",
+          "pnl": -100.81,
+          "duration": 3,
+          "eq": 9980.21
+        },
+        {
+          "i": 4522,
+          "dir": "SELL",
+          "entry": 4692.79,
+          "result": "TP1",
+          "pnl": 119.76,
+          "duration": 56,
+          "eq": 10099.97
+        },
+        {
+          "i": 4548,
+          "dir": "SELL",
+          "entry": 4613.32,
+          "result": "TP1",
+          "pnl": 121.2,
+          "duration": 4,
+          "eq": 10221.17
+        },
+        {
+          "i": 4648,
+          "dir": "SELL",
+          "entry": 4565.77,
+          "result": "TP1",
+          "pnl": 122.65,
+          "duration": 17,
+          "eq": 10343.82
+        },
+        {
+          "i": 4910,
+          "dir": "SELL",
+          "entry": 4588.28,
+          "result": "TP1",
+          "pnl": 124.13,
+          "duration": 10,
+          "eq": 10467.95
+        }
+      ]
+    },
+    {
+      "label": "ITER 4     SL: 3.5x → 2.5x ATR",
+      "cfg": {
+        "slMult": 2.5,
+        "tpMult": 1.2,
+        "threshold": 65,
+        "cooldownBars": 6
+      },
+      "trades": 49,
+      "wins": 23,
+      "losses": 26,
+      "winRate": 46.9,
+      "profitFactor": 1.05,
+      "maxDrawdown": 5.14,
+      "totalPct": 1.31,
+      "endEquity": 10131.29,
+      "avgDuration": 20,
+      "bpDist": {
+        "0": 50,
+        "5": 1,
+        "10": 12,
+        "15": 56,
+        "20": 98,
+        "25": 432,
+        "30": 261,
+        "35": 538,
+        "40": 730,
+        "45": 411,
+        "50": 760,
+        "55": 128,
+        "60": 249,
+        "70": 2
+      },
+      "tradeList": [
+        {
+          "i": 4470,
+          "dir": "SELL",
+          "entry": 4692.79,
+          "result": "TP1",
+          "pnl": 115.69,
+          "duration": 4,
+          "eq": 9756.82
+        },
+        {
+          "i": 4502,
+          "dir": "SELL",
+          "entry": 4675.1,
+          "result": "SL",
+          "pnl": -97.57,
+          "duration": 26,
+          "eq": 9659.25
+        },
+        {
+          "i": 4522,
+          "dir": "SELL",
+          "entry": 4671.27,
+          "result": "TP1",
+          "pnl": 115.91,
+          "duration": 10,
+          "eq": 9775.16
+        },
+        {
+          "i": 4548,
+          "dir": "SELL",
+          "entry": 4613.32,
+          "result": "TP1",
+          "pnl": 117.3,
+          "duration": 4,
+          "eq": 9892.46
+        },
+        {
+          "i": 4647,
+          "dir": "SELL",
+          "entry": 4565.77,
+          "result": "TP1",
+          "pnl": 118.7,
+          "duration": 16,
+          "eq": 10011.16
+        },
+        {
+          "i": 4910,
+          "dir": "SELL",
+          "entry": 4588.28,
+          "result": "TP1",
+          "pnl": 120.13,
+          "duration": 10,
+          "eq": 10131.29
+        }
+      ]
+    },
+    {
+      "label": "ITER 5     OPTIMAL SL:2.8x TP:1.5x T:68%",
+      "cfg": {
+        "slMult": 2.8,
+        "tpMult": 1.5,
+        "threshold": 68,
+        "cooldownBars": 6
+      },
+      "trades": 41,
+      "wins": 18,
+      "losses": 23,
+      "winRate": 43.9,
+      "profitFactor": 1.16,
+      "maxDrawdown": 4.97,
+      "totalPct": 3.75,
+      "endEquity": 10375.25,
+      "avgDuration": 19,
+      "bpDist": {
+        "0": 41,
+        "5": 1,
+        "10": 13,
+        "15": 60,
+        "20": 108,
+        "25": 446,
+        "30": 275,
+        "35": 553,
+        "40": 744,
+        "45": 462,
+        "50": 816,
+        "55": 150,
+        "60": 268,
+        "65": 12,
+        "70": 2
+      },
+      "tradeList": [
+        {
+          "i": 4362,
+          "dir": "SELL",
+          "entry": 4678.9,
+          "result": "SL",
+          "pnl": -99.74,
+          "duration": 2,
+          "eq": 9874.14
+        },
+        {
+          "i": 4414,
+          "dir": "SELL",
+          "entry": 4680.91,
+          "result": "SL",
+          "pnl": -98.74,
+          "duration": 3,
+          "eq": 9775.4
+        },
+        {
+          "i": 4522,
+          "dir": "SELL",
+          "entry": 4692.79,
+          "result": "TP1",
+          "pnl": 146.63,
+          "duration": 56,
+          "eq": 9922.03
+        },
+        {
+          "i": 4548,
+          "dir": "SELL",
+          "entry": 4613.32,
+          "result": "TP1",
+          "pnl": 148.83,
+          "duration": 4,
+          "eq": 10070.86
+        },
+        {
+          "i": 4648,
+          "dir": "SELL",
+          "entry": 4565.77,
+          "result": "TP1",
+          "pnl": 151.06,
+          "duration": 17,
+          "eq": 10221.92
+        },
+        {
+          "i": 4910,
+          "dir": "SELL",
+          "entry": 4588.28,
+          "result": "TP1",
+          "pnl": 153.33,
+          "duration": 10,
+          "eq": 10375.25
+        }
+      ]
+    }
+  ]
+}
