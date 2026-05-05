@@ -503,3 +503,80 @@ select option { background: var(--bg-card); }
   .perf-metrics { grid-template-columns: repeat(2, 1fr); }
   .perf-dashboard { padding: 0 12px 24px; }
 }
+
+/* ─── SMC Chart Legend ─────────────────────────────────────────────────────── */
+.smc-legend {
+  background: linear-gradient(135deg, #0d1117 0%, #0f1623 100%);
+  border: 1px solid #1e2d45;
+  border-top: 2px solid #3b82f6;
+  border-radius: 0 0 12px 12px;
+  padding: 14px 18px;
+  margin-top: -2px;
+}
+.smc-legend-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #8898b8;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.smc-legend-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin-bottom: 10px;
+}
+.smc-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: #c8d6f0;
+}
+.smc-legend-item small {
+  color: #556b8d;
+  font-size: 10px;
+}
+.smc-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+.smc-legend-note {
+  font-size: 11px;
+  color: #f59e0b;
+  background: #f59e0b0f;
+  border: 1px solid #f59e0b22;
+  border-radius: 6px;
+  padding: 7px 10px;
+  line-height: 1.5;
+}
+.smc-legend-note strong { color: #fff; }
+
+/* ─── Signal Toast (chart popup) ───────────────────────────────────────────── */
+.signal-toast {
+  position: fixed;
+  top: 80px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  animation: slideInRight 0.4s ease;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+.signal-toast.buy  { background: #22d3a5; color: #000; }
+.signal-toast.sell { background: #f4503a; color: #fff; }
+.signal-toast.fade-out { opacity: 0; transition: opacity 0.6s; }
+
+@keyframes slideInRight {
+  from { transform: translateX(120px); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
