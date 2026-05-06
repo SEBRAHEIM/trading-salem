@@ -17,7 +17,7 @@ const TELEGRAM_BOT_TOKEN = '8643381958:AAGUT_9Q_lSj_29Y2lfPRJNzG9TzlmhqReM';
 const TELEGRAM_TARGETS   = ['6732836566', '765993766']; // DM + @Eem09 (group stopped)
 const PAPER_START        = 150;
 const PAPER_RISK_PCT     = 1.0;
-const STATE_URL          = 'https://jsonblob.com/api/jsonBlob/019df75c-6187-7a65-9034-897c1f96a94a';
+const STATE_URL          = 'https://jsonblob.com/api/jsonBlob/019dfddf-9b5f-7150-a371-56ba9a3db2c1';
 const MAX_DRAWDOWN_PCT   = 5.0;
 const COOLDOWN_MS        = 90 * 60 * 1000;   // 90-minute cooldown between signals
 

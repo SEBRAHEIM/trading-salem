@@ -4,7 +4,7 @@
  * Used by the dashboard to show win rate, profit factor, equity curve, etc.
  */
 
-const STATE_URL = 'https://jsonblob.com/api/jsonBlob/019df75c-6187-7a65-9034-897c1f96a94a';
+const STATE_URL = 'https://jsonblob.com/api/jsonBlob/019dfddf-9b5f-7150-a371-56ba9a3db2c1';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
