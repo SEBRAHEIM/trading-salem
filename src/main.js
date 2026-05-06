@@ -10,7 +10,7 @@ import { fetchCandles, fetchLivePrice, addSyntheticTick, PAIRS, INTERVALS } from
 import { smcSignal } from './strategies/smc.js';
 import { computeRiskParams } from './data/backtest.js';
 import { parseWhalesCSV, fetchLiveWhalesAPI, whaleLevels } from './data/whales.js';
-import { initPerfDashboard } from './perf-dashboard.js';
+import { initPerfDashboard, triggerPerfRefresh } from './perf-dashboard.js';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 const state = {
@@ -215,7 +215,8 @@ document.getElementById('app').innerHTML = `
           <div class="perf-subtitle">Live performance tracking · Started May 2026 · XAU/USD 15m · $150 capital</div>
         </div>
       </div>
-      <button class="perf-refresh-btn" id="perf-refresh-btn">↺ Refresh</button>
+      <button class="perf-refresh-btn" id="perf-refresh-btn">↻</button>
+      <span class="perf-last-updated" id="perf-last-updated"></span>
     </div>
     <div class="perf-metrics" id="perf-metrics">
       <div class="perf-metric-card"><div class="perf-metric-label">TOTAL RETURN</div><div class="perf-metric-value" id="pm-return">—</div><div class="perf-metric-sub" id="pm-return-sub">Awaiting trades</div></div>

@@ -668,3 +668,22 @@ select option { background: var(--bg-card); }
   .signal-hero-value { font-size: 28px; }
   .price-main { font-size: 24px; }
 }
+
+/* ─── Perf last-updated label ──────────────────────────────────────────────── */
+.perf-last-updated {
+  font-size: 10px;
+  color: #44526a;
+  margin-left: 8px;
+  font-style: italic;
+}
+.perf-refresh-btn {
+  background: transparent;
+  border: 1px solid #1e2d45;
+  border-radius: 6px;
+  color: #8898b8;
+  padding: 4px 10px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.perf-refresh-btn:hover { border-color: #22d3a5; color: #22d3a5; }

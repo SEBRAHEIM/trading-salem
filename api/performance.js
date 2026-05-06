@@ -79,6 +79,8 @@ export default async function handler(req, res) {
     return res.status(200).json({
       totalTrades: trades.length,
       winRate:       +winRate.toFixed(1),
+      winCount:      wins.length,
+      lossCount:     losses.length,
       profitFactor:  +profitFactor.toFixed(2),
       totalPnl:      +totalPnl.toFixed(2),
       totalPnlPct:   +((totalPnl / startEquity) * 100).toFixed(1),
@@ -89,9 +91,10 @@ export default async function handler(req, res) {
       maxConsecWins, maxConsecLoss,
       equity, startEquity, openTrade,
       equityCurve,
-      recentTrades,
+      trades,          // full closed trades array
+      recentTrades,    // last 10 reversed
       bestTrade, worstTrade,
-      breakdown: { tp2: tp2s.length, tp1Secured: tp1s.length, sl: losses.length },
+      breakdown: { tp1: tp1s.length, tp2: tp2s.length, sl: losses.length },
       lastUpdated: new Date().toISOString(),
     });
   } catch (e) {
