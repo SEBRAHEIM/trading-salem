@@ -580,3 +580,91 @@ select option { background: var(--bg-card); }
   from { transform: translateX(120px); opacity: 0; }
   to   { transform: translateX(0);     opacity: 1; }
 }
+
+/* ─── MOBILE FIXES ─────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+
+  /* Header */
+  .header { padding: 10px 12px; flex-wrap: wrap; gap: 8px; }
+  .header-logo .logo-text { font-size: 14px; }
+  .header-logo .logo-sub  { font-size: 10px; }
+  .header-mid  { width: 100%; overflow-x: auto; }
+  .header-right { gap: 6px; }
+
+  /* Main layout — stack vertically on mobile */
+  .main-layout  { flex-direction: column !important; }
+  .left-panel   { width: 100% !important; min-width: unset !important; }
+  .right-panel  { width: 100% !important; }
+  .chart-panel  { height: 300px !important; }
+
+  /* Signal hero */
+  .signal-hero        { padding: 16px 12px; }
+  .signal-hero-value  { font-size: 32px; }
+  .signal-sub         { font-size: 11px; }
+
+  /* Gauge */
+  .gauge-row    { gap: 8px; }
+  .gauge-track  { height: 8px; }
+
+  /* Vote counts */
+  .votes-row { gap: 8px; flex-wrap: wrap; }
+  .vote-box  { padding: 8px; min-width: 60px; }
+
+  /* Risk box */
+  .risk-box    { padding: 12px; }
+  .risk-grid   { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .risk-row    { padding: 6px 8px; }
+  .rl          { font-size: 9px; }
+  .rv          { font-size: 13px; }
+
+  /* SMC Filter panel */
+  .strategies-panel   { padding: 10px 8px; }
+  .strat-item         { padding: 8px 10px; flex-wrap: wrap; gap: 4px; }
+  .strat-name         { font-size: 11px; }
+  .strat-reason       { font-size: 10px; }
+  .strat-badge        { font-size: 9px; padding: 2px 6px; }
+
+  /* SMC Legend */
+  .smc-legend         { padding: 10px 12px; }
+  .smc-legend-items   { gap: 6px 12px; }
+  .smc-legend-item    { font-size: 11px; }
+  .smc-legend-note    { font-size: 10px; }
+
+  /* Reasoning */
+  .reasoning-box      { padding: 12px; }
+  .reasoning-item     { flex-direction: column; gap: 2px; }
+  .reasoning-name     { font-size: 11px; }
+  .reasoning-text     { font-size: 10px; }
+
+  /* Performance dashboard */
+  .perf-dashboard { padding: 12px; }
+  .perf-grid      { grid-template-columns: 1fr 1fr !important; gap: 8px; }
+  .perf-card      { padding: 12px 10px; }
+  .perf-val       { font-size: 22px; }
+  .perf-label     { font-size: 9px; }
+  .perf-sub       { font-size: 9px; }
+
+  /* Price display */
+  .price-main    { font-size: 28px; }
+  .price-change  { font-size: 12px; }
+  .stat-row      { gap: 8px; flex-wrap: wrap; }
+  .stat-item     { font-size: 10px; }
+
+  /* Asset tabs */
+  .asset-tabs    { gap: 4px; }
+  .asset-tab     { padding: 4px 8px; font-size: 11px; }
+  .interval-tabs { gap: 4px; }
+  .interval-btn  { padding: 3px 7px; font-size: 10px; }
+
+  /* Equity chart */
+  .equity-chart  { height: 120px !important; }
+
+  /* Recent trades table */
+  .trades-table th, .trades-table td { font-size: 10px; padding: 5px 6px; }
+}
+
+@media (max-width: 420px) {
+  .perf-grid { grid-template-columns: 1fr !important; }
+  .signal-hero-value { font-size: 28px; }
+  .price-main { font-size: 24px; }
+}

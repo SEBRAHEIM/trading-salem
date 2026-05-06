@@ -29,10 +29,10 @@ export default async function handler(req, res) {
       });
     }
 
-    const wins  = trades.filter(t => t.result === 'TP2' || t.result === 'TP1_Secured');
+    const wins   = trades.filter(t => t.result === 'TP1' || t.result === 'TP2' || t.result === 'TP1_Secured');
     const losses = trades.filter(t => t.result === 'SL');
-    const tp2s  = trades.filter(t => t.result === 'TP2');
-    const tp1s  = trades.filter(t => t.result === 'TP1_Secured');
+    const tp1s   = trades.filter(t => t.result === 'TP1');
+    const tp2s   = trades.filter(t => t.result === 'TP2');
 
     const totalPnl  = trades.reduce((s, t) => s + (t.pnl || 0), 0);
     const grossWin  = wins.reduce((s, t) => s + Math.max(0, t.pnl || 0), 0);
