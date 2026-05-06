@@ -581,109 +581,121 @@ select option { background: var(--bg-card); }
   to   { transform: translateX(0);     opacity: 1; }
 }
 
-/* ─── MOBILE FIXES ─────────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE LAYOUT - Phone Optimized
+═══════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
+  .header { padding: 10px 14px; flex-wrap: nowrap; gap: 8px; }
+  .header-logo .logo-icon { font-size: 18px; }
+  .header-logo .logo-text { font-size: 13px; }
+  .header-logo .logo-sub  { font-size: 9px; }
+  .header-mid  { display: none; }
+  .header-right .btn { display: none; }
+  .live-badge  { font-size: 9px; padding: 3px 8px; }
 
-  /* Header */
-  .header { padding: 10px 12px; flex-wrap: wrap; gap: 8px; }
-  .header-logo .logo-text { font-size: 14px; }
-  .header-logo .logo-sub  { font-size: 10px; }
-  .header-mid  { width: 100%; overflow-x: auto; }
-  .header-right { gap: 6px; }
+  .main-layout { display: block !important; padding: 0; }
+  .panel       { display: block !important; padding: 0; }
 
-  /* Main layout — stack vertically on mobile */
-  .main-layout  { flex-direction: column !important; }
-  .left-panel   { width: 100% !important; min-width: unset !important; }
-  .right-panel  { width: 100% !important; }
-  .chart-panel  { height: 300px !important; }
+  .col-chart   { width: 100%; }
+  .chart-header { padding: 10px 14px 6px; }
+  .price-main  { font-size: 30px; font-weight: 700; line-height: 1.1; }
+  .price-pair  { font-size: 11px; color: #556b8d; }
+  .price-change { font-size: 12px; }
+  .ohlc-row    { gap: 12px; flex-wrap: wrap; }
+  .ohlc-item   { font-size: 11px; }
+  .ohlc-label  { font-size: 9px; }
+  .chart-wrap, #chart-container { height: 260px !important; }
+  .chart-badges { display: none; }
 
-  /* Signal hero */
-  .signal-hero        { padding: 16px 12px; }
-  .signal-hero-value  { font-size: 32px; }
-  .signal-sub         { font-size: 11px; }
+  .col-signal  { width: 100%; padding: 0 0 16px; }
 
-  /* Gauge */
-  .gauge-row    { gap: 8px; }
-  .gauge-track  { height: 8px; }
+  .signal-hero { margin: 12px 14px 0; border-radius: 12px; padding: 16px; }
+  .signal-hero-label { font-size: 9px; }
+  .signal-hero-value { font-size: 34px; }
+  .signal-hero-sub   { font-size: 11px; margin-top: 4px; }
 
-  /* Vote counts */
-  .votes-row { gap: 8px; flex-wrap: wrap; }
-  .vote-box  { padding: 8px; min-width: 60px; }
+  .gauge-section { padding: 10px 14px 0; }
+  .gauge-label { font-size: 9px; }
+  .gauge-pct   { font-size: 13px; }
+  .gauge-track { height: 8px; border-radius: 4px; }
+  .gauge-legend { font-size: 9px; margin-top: 4px; }
+  .gauge-threshold-label { font-size: 9px; }
 
-  /* Risk box */
-  .risk-box    { padding: 12px; }
-  .risk-grid   { grid-template-columns: 1fr 1fr; gap: 8px; }
-  .risk-row    { padding: 6px 8px; }
-  .rl          { font-size: 9px; }
-  .rv          { font-size: 13px; }
+  .vote-row  { padding: 10px 14px; gap: 0; }
+  .vote-item { flex: 1; padding: 8px 4px; }
+  .vote-num  { font-size: 22px; }
+  .vote-lbl  { font-size: 9px; }
+  .vote-divider { width: 1px; }
 
-  /* SMC Filter panel */
-  .strategies-panel   { padding: 10px 8px; }
-  .strat-item         { padding: 8px 10px; flex-wrap: wrap; gap: 4px; }
-  .strat-name         { font-size: 11px; }
-  .strat-reason       { font-size: 10px; }
-  .strat-badge        { font-size: 9px; padding: 2px 6px; }
+  .market-row { padding: 8px 14px; gap: 0; }
+  .market-col { flex: 1; }
+  .market-label { font-size: 8px; }
+  .market-val   { font-size: 11px; }
+  .market-val.mono { font-size: 10px; }
 
-  /* SMC Legend */
-  .smc-legend         { padding: 10px 12px; }
-  .smc-legend-items   { gap: 6px 12px; }
-  .smc-legend-item    { font-size: 11px; }
-  .smc-legend-note    { font-size: 10px; }
+  .risk-box   { margin: 8px 14px; padding: 12px; }
+  .risk-box-title { font-size: 9px; margin-bottom: 8px; }
+  .risk-grid  { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .risk-item  { padding: 8px; }
+  .rl         { font-size: 9px; }
+  .rv         { font-size: 14px; }
 
-  /* Reasoning */
-  .reasoning-box      { padding: 12px; }
-  .reasoning-item     { flex-direction: column; gap: 2px; }
-  .reasoning-name     { font-size: 11px; }
-  .reasoning-text     { font-size: 10px; }
+  .strategies-panel { margin: 8px 14px; padding: 0; background: transparent; border: none; }
+  .strat-list { display: flex; flex-direction: column; gap: 6px; }
+  .strat-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid #1e2d45; border-radius: 8px;
+    flex-wrap: nowrap;
+  }
+  .strat-item.buy { border-color: #22d3a522; background: #22d3a508; }
+  .strat-signal-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .strat-signal-dot.buy { background: #22d3a5; }
+  .strat-signal-dot.neutral { background: #44526a; }
+  .strat-info { flex: 1; min-width: 0; }
+  .strat-name { font-size: 11px; font-weight: 600; color: #c8d6f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .strat-reason { font-size: 10px; color: #556b8d; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .strat-badge { font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 4px; flex-shrink: 0; }
+  .strat-badge.buy { background: #22d3a520; color: #22d3a5; }
+  .strat-badge.neutral { background: #1e2d45; color: #556b8d; }
 
-  /* Performance dashboard */
-  .perf-dashboard { padding: 12px; }
-  .perf-grid      { grid-template-columns: 1fr 1fr !important; gap: 8px; }
-  .perf-card      { padding: 12px 10px; }
-  .perf-val       { font-size: 22px; }
-  .perf-label     { font-size: 9px; }
-  .perf-sub       { font-size: 9px; }
+  .reasoning-box { display: none; }
+  .smc-legend    { display: none !important; }
 
-  /* Price display */
-  .price-main    { font-size: 28px; }
-  .price-change  { font-size: 12px; }
-  .stat-row      { gap: 8px; flex-wrap: wrap; }
-  .stat-item     { font-size: 10px; }
-
-  /* Asset tabs */
-  .asset-tabs    { gap: 4px; }
-  .asset-tab     { padding: 4px 8px; font-size: 11px; }
-  .interval-tabs { gap: 4px; }
-  .interval-btn  { padding: 3px 7px; font-size: 10px; }
-
-  /* Equity chart */
-  .equity-chart  { height: 120px !important; }
-
-  /* Recent trades table */
-  .trades-table th, .trades-table td { font-size: 10px; padding: 5px 6px; }
+  .perf-dashboard { margin: 0; padding: 16px 14px; border-radius: 0; border-left: none; border-right: none; }
+  .perf-header    { flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .perf-icon      { font-size: 20px; }
+  .perf-title     { font-size: 14px; }
+  .perf-subtitle  { font-size: 9px; }
+  .perf-metrics   { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+  .perf-metric-card { padding: 12px 10px; border-radius: 10px; }
+  .perf-metric-label { font-size: 8px; }
+  .perf-metric-value { font-size: 22px; }
+  .perf-metric-sub   { font-size: 9px; }
+  .perf-curve-wrap svg { height: 100px !important; }
+  .perf-bottom-grid   { grid-template-columns: 1fr !important; gap: 12px !important; }
+  .perf-breakdown { padding: 12px; }
+  .perf-section-title { font-size: 9px; }
+  .perf-trades    { padding: 12px; }
+  .perf-trade-row { font-size: 10px; padding: 8px 0; }
+  .perf-trade-date { font-size: 9px; }
+  .perf-disclaimer { font-size: 9px; padding: 10px 12px; }
 }
 
-@media (max-width: 420px) {
-  .perf-grid { grid-template-columns: 1fr !important; }
+@media (max-width: 390px) {
+  .price-main        { font-size: 26px; }
   .signal-hero-value { font-size: 28px; }
-  .price-main { font-size: 24px; }
+  .perf-metrics      { grid-template-columns: 1fr !important; }
+  .vote-num          { font-size: 18px; }
 }
 
-/* ─── Perf last-updated label ──────────────────────────────────────────────── */
+/* Perf last-updated label */
 .perf-last-updated {
-  font-size: 10px;
-  color: #44526a;
-  margin-left: 8px;
-  font-style: italic;
+  font-size: 10px; color: #44526a; margin-left: 8px; font-style: italic;
 }
 .perf-refresh-btn {
-  background: transparent;
-  border: 1px solid #1e2d45;
-  border-radius: 6px;
-  color: #8898b8;
-  padding: 4px 10px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
+  background: transparent; border: 1px solid #1e2d45; border-radius: 6px;
+  color: #8898b8; padding: 4px 10px; font-size: 14px; cursor: pointer; transition: all 0.2s;
 }
 .perf-refresh-btn:hover { border-color: #22d3a5; color: #22d3a5; }

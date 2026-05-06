@@ -141,8 +141,6 @@ export async function initChart(container, pair = 'XAU/USD', interval = '15min')
     currentSymbol = pair;
     console.info(`[Chart] Loaded: ${tvSymbol} / ${tvInterval} with SMC indicators`);
 
-    // Draw SMC overlay legend below chart
-    _renderSMCLegend(container);
 
   } catch (err) {
     console.error('[Chart] Failed:', err);
@@ -154,52 +152,7 @@ export async function initChart(container, pair = 'XAU/USD', interval = '15min')
   }
 }
 
-// ─── SMC Indicator Legend ──────────────────────────────────────────────────────
-function _renderSMCLegend(container) {
-  // Remove old legend
-  const old = container.parentElement?.querySelector('.smc-legend');
-  if (old) old.remove();
-
-  const legend = document.createElement('div');
-  legend.className = 'smc-legend';
-  legend.innerHTML = `
-    <div class="smc-legend-title">📐 SMC Indicators on Chart</div>
-    <div class="smc-legend-items">
-      <div class="smc-legend-item">
-        <span class="smc-dot" style="background:#3b82f6"></span>
-        <span>EMA 50</span><small>Short-term trend</small>
-      </div>
-      <div class="smc-legend-item">
-        <span class="smc-dot" style="background:#f59e0b"></span>
-        <span>EMA 200</span><small>H4 trend filter (Filter 1)</small>
-      </div>
-      <div class="smc-legend-item">
-        <span class="smc-dot" style="background:#a78bfa"></span>
-        <span>RSI 14</span><small>Momentum filter (Filter 3) · Buy zone: 30–60 · Sell zone: 40–70</small>
-      </div>
-      <div class="smc-legend-item">
-        <span class="smc-dot" style="background:#64748b"></span>
-        <span>ATR 14</span><small>Volatility regime (Filter 5) · Valid range: 0.6–2.2× avg</small>
-      </div>
-      <div class="smc-legend-item">
-        <span class="smc-dot" style="background:#ffffff33;border:1px solid #3b82f6"></span>
-        <span>Session Zones</span><small>Blue = London (06–12 UTC) · Green = NY (13–19 UTC) · Filter 4</small>
-      </div>
-      <div class="smc-legend-item">
-        <span style="font-size:11px">📌</span>
-        <span>Structure Levels</span><small>Horizontal swing HIGH/LOW — Filter 2: price must break then retest</small>
-      </div>
-    </div>
-    <div class="smc-legend-note">
-      🚨 Signal fires only when <strong>all 5 filters align simultaneously</strong>.
-      Watch for price to break a swing level then pull back to it during London/NY session.
-    </div>
-  `;
-
-  container.parentElement?.appendChild(legend);
-}
-
-// ─── Update chart symbol/interval ─────────────────────────────────────────────
+// ─── Update chart symbol/interval ──────────────────────────────────────────
 export function updateChart(pair, interval) {
   if (!widgetContainer) return;
   initChart(widgetContainer, pair, interval);
