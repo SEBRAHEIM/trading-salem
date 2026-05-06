@@ -699,3 +699,47 @@ select option { background: var(--bg-card); }
   color: #8898b8; padding: 4px 10px; font-size: 14px; cursor: pointer; transition: all 0.2s;
 }
 .perf-refresh-btn:hover { border-color: #22d3a5; color: #22d3a5; }
+
+/* ─── Mobile refinements (post-screenshot fixes) ─────────────────────────── */
+@media (max-width: 768px) {
+
+  /* Signal subtitle — limit to 2 lines, no ugly wrapping */
+  .signal-hero-sub {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.4;
+    font-size: 11px;
+    opacity: 0.8;
+  }
+
+  /* Hide gauge threshold red line on mobile — confusing on NO TRADE */
+  .gauge-threshold { display: none !important; }
+  .gauge-legend    { display: none !important; }
+
+  /* Filter item text — allow 2 lines instead of cutting off */
+  .strat-name   { white-space: normal !important; font-size: 11px; line-height: 1.3; }
+  .strat-reason { white-space: normal !important; font-size: 10px; line-height: 1.3;
+                  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+
+  /* Tighten chart height on mobile — toolbar hidden so less space needed */
+  .chart-wrap, #chart-container { height: 240px !important; }
+
+  /* Signal label */
+  .signal-hero-label { letter-spacing: 0.12em; }
+
+  /* Gauge bar — thinner and cleaner */
+  .gauge-section { padding: 8px 14px; }
+  .gauge-header  { margin-bottom: 5px; }
+  .gauge-track   { border-radius: 3px; }
+
+  /* Vote row — tighten spacing */
+  .vote-row { padding: 8px 14px; border-top: 1px solid #1e2d45; border-bottom: 1px solid #1e2d45; }
+
+  /* Market status row — smaller font */
+  .market-row { padding: 6px 14px; }
+
+  /* Perf header — single row */
+  .perf-header-title { flex-direction: row; align-items: center; }
+}

@@ -61,7 +61,8 @@ export async function initChart(container, pair = 'XAU/USD', interval = '15min')
       locale:            'en',
       toolbar_bg:        '#0c0e15',
       enable_publishing: false,
-      hide_top_toolbar:  false,
+      hide_top_toolbar:  window.innerWidth < 768,  // hide on mobile to save space
+      hide_side_toolbar: window.innerWidth < 768,
       hide_legend:       false,
       save_image:        false,
       container_id:      id,
