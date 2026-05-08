@@ -141,16 +141,26 @@ const TELEGRAM_TARGETS = [
   '765993766',           // @Eem09
 ];
 
-function sendTelegram(htmlContent) {
+async function sendTelegram(htmlContent) {
   const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
-  
-  TELEGRAM_TARGETS.forEach(chat_id => {
-    fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id, text: htmlContent, parse_mode: 'HTML' })
-    }).catch(err => console.error(`[BOT] Telegram error (${chat_id}):`, err.message));
-  });
+  const results = await Promise.allSettled(
+    TELEGRAM_TARGETS.map(async (chat_id) => {
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id, text: htmlContent, parse_mode: 'HTML' })
+      });
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}));
+        console.error(`[BOT] Telegram FAILED for ${chat_id}: ${r.status} — ${body?.description || 'unknown'}`);
+      } else {
+        console.log(`[BOT] Telegram sent ✅ to ${chat_id}`);
+      }
+      return r;
+    })
+  );
+  const failed = results.filter(r => r.status === 'rejected').length;
+  if (failed > 0) console.error(`[BOT] ${failed}/${results.length} Telegram sends failed`);
 }
 
 // Bot tick every 60s — XAU/USD only
