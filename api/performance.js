@@ -1,14 +1,26 @@
 /**
  * /api/performance.js
  * Returns real performance statistics from the bot's trade history.
- * Used by the dashboard to show win rate, profit factor, equity curve, etc.
+ * Uses the same pointer blob as cron-tick.js — always reads live data.
  */
 
-const STATE_URL = 'https://jsonblob.com/api/jsonBlob/019dfddf-9b5f-7150-a371-56ba9a3db2c1';
+const POINTER_URL = 'https://jsonblob.com/api/jsonBlob/019e056f-5f10-717e-9162-a86e051fadf8';
+
+async function getStateUrl() {
+  try {
+    const r = await fetch(POINTER_URL, { headers: { Accept: 'application/json' } });
+    if (r.ok) {
+      const d = await r.json();
+      if (d && d._stateUrl) return d._stateUrl;
+    }
+  } catch (e) {}
+  return POINTER_URL; // pointer IS the state blob
+}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   try {
+    const STATE_URL = await getStateUrl();
     const r = await fetch(STATE_URL, { headers: { 'Accept': 'application/json' } });
     if (!r.ok) return res.status(503).json({ error: 'State unavailable' });
     const state = await r.json();

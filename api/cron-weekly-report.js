@@ -10,7 +10,7 @@
  */
 
 const BOT_TOKEN    = "8643381958:AAGUT_9Q_lSj_29Y2lfPRJNzG9TzlmhqReM";
-const TG_TARGETS   = ["6732836566", "-1003752467954"]; // DM + Group @chatbotsallem
+const TG_TARGETS   = ["6732836566", "765993766"]; // DM + @Eem09
 const STATE_URL    = 'https://jsonblob.com/api/jsonBlob/019d9ab2-26ea-70d2-bc44-9a788ea20156';
 const PAPER_START  = 150;
 

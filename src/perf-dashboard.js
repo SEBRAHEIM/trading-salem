@@ -32,18 +32,24 @@ async function loadPerformanceDashboard(silent = false) {
 
 function renderPerformanceDashboard(d) {
   // ── Core metrics ───────────────────────────────────────────────────────────
-  const totalPnl = d.totalPnl ?? 0;
-  const pnlPct   = d.totalPnlPct ?? ((totalPnl / (d.startEquity || 150)) * 100);
-  const isPos    = pnlPct >= 0;
+  const totalPnl    = d.totalPnl ?? 0;
+  const startEquity = d.startEquity ?? 150;
+  const equity      = d.equity ?? startEquity;
+  const pnlPct      = +((totalPnl / startEquity) * 100).toFixed(1);
+  const isPos       = totalPnl >= 0;
 
   const wins   = (d.trades || []).filter(t => t.result === 'TP1' || t.result === 'TP2' || t.result === 'TP1_Secured').length;
   const losses = (d.trades || []).filter(t => t.result === 'SL').length;
 
-  // Return %
-  const retEl = document.getElementById('pm-return');
+  // NET P&L — show dollar amount as hero, % as sub
+  const retEl    = document.getElementById('pm-return');
+  const retSubEl = document.getElementById('pm-return-sub');
   if (retEl) {
-    retEl.textContent = (isPos ? '+' : '') + pnlPct.toFixed(1) + '%';
+    retEl.textContent = (isPos ? '+$' : '-$') + Math.abs(totalPnl).toFixed(2);
     retEl.className   = 'perf-metric-value ' + (isPos ? 'green' : 'red');
+  }
+  if (retSubEl) {
+    retSubEl.textContent = `Balance: $${equity.toFixed(2)} (${isPos ? '+' : ''}${pnlPct}% return)`;
   }
 
   // Win rate
@@ -53,7 +59,7 @@ function renderPerformanceDashboard(d) {
     wrEl.className   = 'perf-metric-value ' + ((d.winRate ?? 0) >= 45 ? 'green' : 'red');
   }
 
-  // W / L count (from actual trades array, not stale counters)
+  // W / L count
   const wlEl = document.getElementById('pm-wl');
   if (wlEl) wlEl.textContent = wins + 'W / ' + losses + 'L';
 
@@ -61,20 +67,20 @@ function renderPerformanceDashboard(d) {
   const pfEl = document.getElementById('pm-pf');
   if (pfEl) pfEl.textContent = (d.profitFactor ?? 0) + '×';
 
-  // Max drawdown
+  // Max drawdown — calculated from peak equity in dollars
   const ddEl = document.getElementById('pm-dd');
   if (ddEl) {
     ddEl.textContent = (d.maxDrawdown ?? 0) + '%';
     ddEl.className   = 'perf-metric-value ' + ((d.maxDrawdown ?? 0) <= 15 ? 'green' : 'red');
   }
 
-  // Avg win / loss
+  // Avg win / loss in dollars (1 pt = $1)
   const awEl = document.getElementById('pm-avgwin');
-  if (awEl) awEl.textContent = '$' + (d.avgWin ?? 0).toFixed(2);
+  if (awEl) awEl.textContent = '+$' + (d.avgWin ?? 0).toFixed(2);
   const alEl = document.getElementById('pm-avgloss');
-  if (alEl) alEl.textContent = 'Avg Loss: $' + (d.avgLoss ?? 0).toFixed(2);
+  if (alEl) alEl.textContent = 'Avg Loss: -$' + (d.avgLoss ?? 0).toFixed(2);
 
-  // Expectancy
+  // Expectancy per trade in dollars
   const expEl = document.getElementById('pm-exp');
   if (expEl) {
     const exp = d.expectancy ?? ((d.avgWin ?? 0) * (d.winRate ?? 0) / 100 - (d.avgLoss ?? 0) * (1 - (d.winRate ?? 0) / 100));
@@ -143,20 +149,26 @@ function renderPerformanceDashboard(d) {
   }
 
   tList.innerHTML = allTrades.map(t => {
-    const isWin  = t.result === 'TP1' || t.result === 'TP2' || t.result === 'TP1_Secured';
+    const isWin    = t.result === 'TP1' || t.result === 'TP2' || t.result === 'TP1_Secured';
     const resClass = isWin ? 'tp1' : 'sl';
     const icon     = isWin ? '🎯' : '❌';
-    const pnlPos   = (t.pnl || 0) >= 0;
+    const pnlVal   = t.pnl ?? 0;
+    const pnlPos   = pnlVal >= 0;
     const dir      = (t.direction || t.dir || '').toLowerCase();
     const date     = (t.openTime || '').slice(0, 16).replace('T', ' ');
-    const pips     = t.pips ? (t.pips > 0 ? '+' : '') + t.pips.toFixed(1) + 'pts' : '';
+    const pips     = t.pips != null ? Math.abs(t.pips).toFixed(2) + ' pts' : '';
+    const bal      = t.equity != null ? ' · $' + t.equity.toFixed(2) : '';
     return `<div class="perf-trade-row">
-      <span class="perf-trade-date">${date}</span>
-      <span class="perf-trade-dir ${dir}">${dir.toUpperCase()}</span>
-      <span style="font-size:12px;color:var(--text-muted)">$${(t.entry || 0).toFixed(2)}</span>
-      <span class="perf-trade-result ${resClass}">${icon} ${t.result}</span>
-      <span class="perf-trade-pnl ${pnlPos ? 'pos' : 'neg'}">${pnlPos ? '+$' : '-$'}${Math.abs(t.pnl || 0).toFixed(2)}</span>
-      <span style="font-size:10px;color:#556b8d">${pips}</span>
+      <div class="ptr-top">
+        <span class="perf-trade-dir ${dir}">${dir.toUpperCase()}</span>
+        <span class="ptr-entry">@ ${(t.entry || 0).toFixed(2)}</span>
+        <span class="perf-trade-pnl ${pnlPos ? 'pos' : 'neg'}">${pnlPos ? '+$' : '-$'}${Math.abs(pnlVal).toFixed(2)}</span>
+      </div>
+      <div class="ptr-bottom">
+        <span class="perf-trade-date">${date}</span>
+        <span class="perf-trade-result ${resClass}">${icon} ${t.result}</span>
+        <span class="ptr-meta">${pips}${bal}</span>
+      </div>
     </div>`;
   }).join('');
 

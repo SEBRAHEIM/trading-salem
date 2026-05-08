@@ -14,23 +14,45 @@
  */
 
 const TELEGRAM_BOT_TOKEN = '8643381958:AAGUT_9Q_lSj_29Y2lfPRJNzG9TzlmhqReM';
-const TELEGRAM_TARGETS   = ['6732836566', '765993766']; // DM + @Eem09 (group stopped)
+const TELEGRAM_TARGETS   = ['6732836566', '765993766']; // DM + @Eem09
 const PAPER_START        = 150;
 const PAPER_RISK_PCT     = 1.0;
-const STATE_URL          = 'https://jsonblob.com/api/jsonBlob/019dfddf-9b5f-7150-a371-56ba9a3db2c1';
 const MAX_DRAWDOWN_PCT   = 5.0;
 const COOLDOWN_MS        = 90 * 60 * 1000;   // 90-minute cooldown between signals
 
-// ─── State ─────────────────────────────────────────────────────────────────────
-async function loadState() {
+// ─── Pointer blob — always holds the current active blob URL ─────────────────
+// This never changes. It stores: { "url": "https://jsonblob.com/api/jsonBlob/..." }
+const POINTER_URL = 'https://jsonblob.com/api/jsonBlob/019e056f-5f10-717e-9162-a86e051fadf8';
+
+let _activeUrl = null; // cached for the lifetime of this invocation
+
+async function getActiveUrl() {
+  if (_activeUrl) return _activeUrl;
   try {
-    const r = await fetch(STATE_URL, { headers: { Accept: 'application/json' } });
+    const r = await fetch(POINTER_URL, { headers: { Accept: 'application/json' } });
+    if (r.ok) {
+      const d = await r.json();
+      // If pointer blob stores { url: '...' } use it, otherwise it IS the state blob
+      if (d && d._stateUrl) {
+        _activeUrl = d._stateUrl;
+        return _activeUrl;
+      }
+    }
+  } catch (e) { console.log('[PTR] Pointer read error:', e.message); }
+  _activeUrl = POINTER_URL; // fallback: pointer IS the state blob
+  return _activeUrl;
+}
+
+async function loadState() {
+  const url = await getActiveUrl();
+  try {
+    const r = await fetch(url, { headers: { Accept: 'application/json' } });
     if (r.ok) {
       const d = await r.json();
       if (d && d.equity) return d;
     }
   } catch (e) { console.log('[STATE] Load error:', e.message); }
-  // Auto-heal: fresh state if blob gone
+  // Auto-heal: blob expired — create fresh state
   return {
     equity: PAPER_START, peakEquity: PAPER_START, startEquity: PAPER_START,
     startDate: new Date().toISOString().slice(0, 10),
@@ -39,40 +61,64 @@ async function loadState() {
 }
 
 async function saveState(state) {
+  const url = await getActiveUrl();
   try {
-    const r = await fetch(STATE_URL, {
+    const r = await fetch(url, {
       method:  'PUT',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body:    JSON.stringify(state),
     });
-    if (!r.ok) {
-      // Blob expired — create a new one and log the new ID
-      const created = await fetch('https://jsonblob.com/api/jsonBlob', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body:    JSON.stringify(state),
-      });
-      const loc   = created.headers.get('location') || '';
-      const newId = loc.split('/').pop();
-      console.log('[STATE] Blob expired — new ID created:', newId);
-      console.log('[STATE] Update STATE_URL in cron-tick.js to:', newId);
-    }
+    if (r.ok) return; // success
+
+    // Blob expired — create a new one
+    const created = await fetch('https://jsonblob.com/api/jsonBlob', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body:    JSON.stringify(state),
+    });
+    const loc    = created.headers.get('location') || '';
+    const newUrl = 'https://jsonblob.com' + loc;
+    _activeUrl   = newUrl;
+    console.log('[STATE] Auto-healed — new blob URL:', newUrl);
+
+    // Update pointer blob so all services find the new URL
+    await fetch(POINTER_URL, {
+      method:  'PUT',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body:    JSON.stringify({ ...state, _stateUrl: newUrl }),
+    }).catch(() => {});
+
+    // Alert owner with the new URL
+    const msg = `⚠️ <b>State Blob Auto-Renewed</b>\n\nNew URL:\n<code>${newUrl}</code>\n\nNo action needed — system self-healed.`;
+    await Promise.allSettled(
+      TELEGRAM_TARGETS.map(id =>
+        fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: id, text: msg, parse_mode: 'HTML' }),
+        })
+      )
+    );
   } catch (e) { console.error('[STATE] Save error:', e.message); }
 }
 
 // ─── Telegram ──────────────────────────────────────────────────────────────────
 async function sendTG(text) {
-  try {
-    await Promise.allSettled(
-      TELEGRAM_TARGETS.map(chat_id =>
-        fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ chat_id, text, parse_mode: 'HTML' }),
-        })
-      )
-    );
-  } catch (e) { console.error('[TG]', e.message); }
+  const results = await Promise.allSettled(
+    TELEGRAM_TARGETS.map(async (chat_id) => {
+      const r = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ chat_id, text, parse_mode: 'HTML' }),
+      });
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}));
+        console.error(`[TG] Failed for chat_id=${chat_id}: ${r.status} — ${body?.description || 'unknown error'}`);
+      }
+      return r;
+    })
+  );
+  const failed = results.filter(r => r.status === 'rejected').length;
+  if (failed > 0) console.error(`[TG] ${failed}/${results.length} sends failed`);
 }
 
 // ─── Session & Risk ────────────────────────────────────────────────────────────
@@ -133,10 +179,9 @@ export default async function handler(req, res) {
 
     // 5. Monitor open trade
     if (state.openTrade) {
-      const t          = state.openTrade;
-      const isBuy      = t.direction === 'BUY';
-      const dollarRisk = +(state.equity * (PAPER_RISK_PCT / 100)).toFixed(2);
-      let closeResult  = null;
+      const t     = state.openTrade;
+      const isBuy = t.direction === 'BUY';
+      let closeResult = null;
 
       if (isBuy) {
         if (lastClose >= t.tp1) closeResult = 'TP1';
@@ -147,20 +192,23 @@ export default async function handler(req, res) {
       }
 
       if (closeResult) {
-        const pnl     = closeResult === 'TP1' ? +(dollarRisk * 2.0).toFixed(2) : -dollarRisk;
-        const pips    = isBuy ? lastClose - t.entry : t.entry - lastClose;
-        state.equity  = +(state.equity + pnl).toFixed(2);
+        // P&L = actual price movement (1 point = $1)
+        const closePrice = closeResult === 'TP1' ? t.tp1 : t.sl;
+        const pips       = isBuy ? closePrice - t.entry : t.entry - closePrice;
+        const pnl        = +pips.toFixed(2);
+        state.equity     = +(state.equity + pnl).toFixed(2);
+        if (state.equity > (state.peakEquity || PAPER_START)) state.peakEquity = state.equity;
 
         state.trades.push({
           ...t,
           closeTime:  new Date().toISOString(),
-          closePrice: lastClose,
+          closePrice,
           result:     closeResult,
           pnl,
-          pips:       +pips.toFixed(1),
+          pips:       +pips.toFixed(2),
           equity:     state.equity,
         });
-        state.openTrade     = null;
+        state.openTrade      = null;
         state.lastSignalTime = null;
         stateChanged = true;
 
@@ -169,20 +217,18 @@ export default async function handler(req, res) {
             `🎯 <b>TARGET HIT! ✅</b>\n\n` +
             `<b>Asset:</b> XAU/USD\n` +
             `<b>Direction:</b> ${t.direction}\n` +
-            `<b>Entry:</b> ${t.entry}\n` +
-            `<b>TP1:</b> ${t.tp1}\n` +
-            `<b>Gained:</b> +${Math.abs(pips).toFixed(1)} pts\n` +
-            `<b>P&L:</b> +$${pnl}\n\n` +
-            `💰 <b>Equity: $${state.equity}</b>`
+            `<b>Entry:</b> ${t.entry} → <b>TP:</b> ${closePrice}\n` +
+            `<b>Profit:</b> +${pips.toFixed(2)} pts = <b>+$${pnl}</b>\n\n` +
+            `💰 <b>Balance: $${state.equity}</b>`
           );
         } else {
           await sendTG(
             `❌ <b>Stop Loss Hit</b>\n\n` +
             `<b>Asset:</b> XAU/USD\n` +
             `<b>Direction:</b> ${t.direction}\n` +
-            `<b>Entry:</b> ${t.entry} → <b>SL:</b> ${t.sl}\n` +
-            `<b>Lost:</b> ${Math.abs(pips).toFixed(1)} pts | -$${dollarRisk}\n\n` +
-            `💼 <b>Equity: $${state.equity}</b> — Next setup loading...`
+            `<b>Entry:</b> ${t.entry} → <b>SL:</b> ${closePrice}\n` +
+            `<b>Loss:</b> ${Math.abs(pips).toFixed(2)} pts = <b>-$${Math.abs(pnl)}</b>\n\n` +
+            `💼 <b>Balance: $${state.equity}</b> — Next setup loading...`
           );
         }
       }

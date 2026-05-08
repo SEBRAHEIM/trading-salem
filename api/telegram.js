@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   const TELEGRAM_BOT_TOKEN = '8643381958:AAGUT_9Q_lSj_29Y2lfPRJNzG9TzlmhqReM';
   const TELEGRAM_TARGETS = [
     '6732836566',          // Personal DM
-    '-1003752467954'       // Group: @chatbotsallem
+    '765993766',           // @Eem09
   ];
   
   const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;

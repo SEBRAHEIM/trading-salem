@@ -137,7 +137,7 @@ select option { background: var(--bg-card); }
 
 .chart-wrap {
   flex: 1;
-  min-height: 300px; /* guarantees chart has space even before layout resolves */
+  min-height: 0; /* let mobile override control height */
   overflow: hidden;
   position: relative;
 }
@@ -347,7 +347,7 @@ select option { background: var(--bg-card); }
   .main-layout { overflow: visible; display: block; min-height: auto; }
   #panel-dashboard { display: block; }
   
-  .col-chart { height: 40vh; min-height: 250px; border-right: none; border-bottom: 1px solid var(--bg-border); }
+  .col-chart { border-right: none; border-bottom: 1px solid var(--bg-border); }
   .chart-header { padding: 6px 10px; gap: 8px; flex-wrap: wrap; }
   .price-main { font-size: 20px; }
   
@@ -462,37 +462,66 @@ select option { background: var(--bg-card); }
 
 .perf-breakdown-bars { display: flex; flex-direction: column; gap: 10px; }
 .pb-row { display: flex; align-items: center; gap: 10px; }
-.pb-label { font-size: 12px; color: var(--text-secondary); width: 120px; flex-shrink: 0; }
-.pb-bar-wrap { flex: 1; height: 8px; background: var(--bg-lighter); border-radius: 4px; overflow: hidden; }
+.pb-label { font-size: 12px; color: var(--text-secondary); width: 90px; flex-shrink: 0; }
+.pb-bar-wrap { flex: 1; height: 8px; background: #1e2d45; border-radius: 4px; overflow: hidden; min-width: 0; }
 .pb-bar { height: 100%; border-radius: 4px; transition: width 1s ease; }
-.pb-bar.tp2 { background: var(--accent-green); }
-.pb-bar.tp1 { background: var(--accent-amber); }
-.pb-bar.sl  { background: var(--accent-red); }
-.pb-val { font-size: 13px; font-weight: 700; font-family: var(--font-mono); color: var(--text-primary); width: 24px; text-align: right; }
+.pb-bar.tp2 { background: #22d3a5; }
+.pb-bar.tp1 { background: #22d3a5; }
+.pb-bar.sl  { background: #f4503a; }
+.pb-val { font-size: 13px; font-weight: 700; color: var(--text-primary); width: 24px; text-align: right; flex-shrink: 0; }
 
-.perf-note { margin-top: 16px; font-size: 12px; color: var(--text-muted); line-height: 1.6; padding: 12px; background: var(--bg-lighter); border-radius: var(--radius-sm); }
-.perf-note strong { color: var(--accent-green); }
+.perf-note { margin-top: 16px; font-size: 12px; color: var(--text-muted); line-height: 1.6; padding: 12px; background: #0a0a0a; border: 1px solid #1e2d45; border-radius: 6px; }
 
 .perf-trades-list { display: flex; flex-direction: column; gap: 8px; }
+
+/* Trade row — 2-line card layout */
 .perf-trade-row {
-  display: grid;
-  grid-template-columns: 1fr 60px 80px 70px 80px;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  background: var(--bg-lighter);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid #1e2d45;
+  border-radius: 8px;
   font-family: var(--font-mono);
+  font-size: 12px;
 }
-.perf-trade-date { font-size: 11px; color: var(--text-muted); }
-.perf-trade-dir.buy  { color: var(--accent-green); font-weight: 700; }
-.perf-trade-dir.sell { color: var(--accent-red);   font-weight: 700; }
+.ptr-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ptr-top .perf-trade-pnl {
+  margin-left: auto;  /* push P&L to the right */
+  font-size: 14px;
+  font-weight: 700;
+}
+.ptr-entry {
+  font-size: 11px;
+  color: #44526a;
+}
+.ptr-bottom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+  color: #44526a;
+}
+.ptr-meta {
+  margin-left: auto; /* push to right */
+  font-size: 9px;
+  color: #44526a;
+  white-space: nowrap;
+}
+
+.perf-trade-date  { font-size: 10px; color: var(--text-muted); }
+.perf-trade-dir.buy  { color: var(--accent-green); font-weight: 700; font-size: 13px; }
+.perf-trade-dir.sell { color: var(--accent-red);   font-weight: 700; font-size: 13px; }
 .perf-trade-result.tp2 { color: var(--accent-green); }
-.perf-trade-result.tp1 { color: var(--accent-amber); }
+.perf-trade-result.tp1 { color: #22d3a5; font-weight: 600; }
 .perf-trade-result.sl  { color: var(--accent-red); }
-.perf-trade-pnl.pos { color: var(--accent-green); }
-.perf-trade-pnl.neg { color: var(--accent-red); }
+.perf-trade-pnl.pos { color: #22d3a5; }
+.perf-trade-pnl.neg { color: #f4503a; }
 .perf-loading { color: var(--text-muted); font-size: 13px; text-align: center; padding: 20px; }
 
 @media (max-width: 900px) {
@@ -604,15 +633,17 @@ select option { background: var(--bg-card); }
   .ohlc-row    { gap: 12px; flex-wrap: wrap; }
   .ohlc-item   { font-size: 11px; }
   .ohlc-label  { font-size: 9px; }
-  .chart-wrap, #chart-container { height: 260px !important; }
+  .col-chart   { height: auto !important; min-height: 0 !important; }
+  .chart-wrap, #chart-container { height: 220px !important; min-height: 0 !important; }
   .chart-badges { display: none; }
 
   .col-signal  { width: 100%; padding: 0 0 16px; }
 
-  .signal-hero { margin: 12px 14px 0; border-radius: 12px; padding: 16px; }
-  .signal-hero-label { font-size: 9px; }
-  .signal-hero-value { font-size: 34px; }
-  .signal-hero-sub   { font-size: 11px; margin-top: 4px; }
+  /* Signal hero — compact but fully visible below chart */
+  .signal-hero { margin: 6px 10px 0; border-radius: 8px; padding: 8px 12px; border-left-width: 3px; }
+  .signal-hero-label { font-size: 8px; margin-bottom: 2px; }
+  .signal-hero-value { font-size: 22px !important; margin-bottom: 2px; letter-spacing: 0; }
+  .signal-hero-sub   { font-size: 9px; margin-top: 2px; line-height: 1.3; }
 
   .gauge-section { padding: 10px 14px 0; }
   .gauge-label { font-size: 9px; }
@@ -640,7 +671,7 @@ select option { background: var(--bg-card); }
   .rl         { font-size: 9px; }
   .rv         { font-size: 14px; }
 
-  .strategies-panel { margin: 8px 14px; padding: 0; background: transparent; border: none; }
+  .strategies-panel { display: none !important; }
   .strat-list { display: flex; flex-direction: column; gap: 6px; }
   .strat-item {
     display: flex; align-items: center; gap: 10px;
@@ -675,19 +706,36 @@ select option { background: var(--bg-card); }
   .perf-metric-sub   { font-size: 9px; }
   .perf-curve-wrap svg { height: 100px !important; }
   .perf-bottom-grid   { grid-template-columns: 1fr !important; gap: 12px !important; }
-  .perf-breakdown { padding: 12px; }
+  .perf-breakdown { padding: 12px 10px; }
   .perf-section-title { font-size: 9px; }
-  .perf-trades    { padding: 12px; }
-  .perf-trade-row { font-size: 10px; padding: 8px 0; }
-  .perf-trade-date { font-size: 9px; }
-  .perf-disclaimer { font-size: 9px; padding: 10px 12px; }
+  .perf-header-title { flex-direction: row; align-items: center; }
+
+  /* Signal hero — small enough to never bleed into chart */
+  .signal-hero { margin: 8px 14px 0; border-radius: 10px; padding: 10px 14px; border-left-width: 3px; }
+  .signal-hero-value { font-size: 26px !important; letter-spacing: -1px; margin-bottom: 2px; }
+
+  /* Balance curve label — no ugly word-wrap */
+  .perf-curve-label { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Trade breakdown bars — always fully visible */
+  .pb-row      { gap: 6px; align-items: center; }
+  .pb-label    { width: 78px !important; font-size: 10px !important; flex-shrink: 0; }
+  .pb-bar-wrap { flex: 1; min-width: 0; overflow: hidden; }
+  .pb-val      { width: 20px !important; font-size: 12px !important; font-weight: 700; text-align: right; flex-shrink: 0; }
+  .perf-note   { font-size: 10px; padding: 8px 10px; margin-top: 10px; line-height: 1.5; }
+
+  /* Recent trades — already flex cards, just tighten padding */
+  .perf-trades-list { gap: 6px; }
+  .perf-trade-row   { padding: 10px 12px; font-size: 11px; }
+  .ptr-top .perf-trade-pnl { font-size: 13px; }
 }
 
 @media (max-width: 390px) {
   .price-main        { font-size: 26px; }
-  .signal-hero-value { font-size: 28px; }
+  .signal-hero-value { font-size: 26px; }
   .perf-metrics      { grid-template-columns: 1fr !important; }
   .vote-num          { font-size: 18px; }
+  .pb-label          { width: 64px !important; font-size: 9px !important; }
 }
 
 /* Perf last-updated label */
@@ -699,47 +747,3 @@ select option { background: var(--bg-card); }
   color: #8898b8; padding: 4px 10px; font-size: 14px; cursor: pointer; transition: all 0.2s;
 }
 .perf-refresh-btn:hover { border-color: #22d3a5; color: #22d3a5; }
-
-/* ─── Mobile refinements (post-screenshot fixes) ─────────────────────────── */
-@media (max-width: 768px) {
-
-  /* Signal subtitle — limit to 2 lines, no ugly wrapping */
-  .signal-hero-sub {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    line-height: 1.4;
-    font-size: 11px;
-    opacity: 0.8;
-  }
-
-  /* Hide gauge threshold red line on mobile — confusing on NO TRADE */
-  .gauge-threshold { display: none !important; }
-  .gauge-legend    { display: none !important; }
-
-  /* Filter item text — allow 2 lines instead of cutting off */
-  .strat-name   { white-space: normal !important; font-size: 11px; line-height: 1.3; }
-  .strat-reason { white-space: normal !important; font-size: 10px; line-height: 1.3;
-                  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
-
-  /* Tighten chart height on mobile — toolbar hidden so less space needed */
-  .chart-wrap, #chart-container { height: 240px !important; }
-
-  /* Signal label */
-  .signal-hero-label { letter-spacing: 0.12em; }
-
-  /* Gauge bar — thinner and cleaner */
-  .gauge-section { padding: 8px 14px; }
-  .gauge-header  { margin-bottom: 5px; }
-  .gauge-track   { border-radius: 3px; }
-
-  /* Vote row — tighten spacing */
-  .vote-row { padding: 8px 14px; border-top: 1px solid #1e2d45; border-bottom: 1px solid #1e2d45; }
-
-  /* Market status row — smaller font */
-  .market-row { padding: 6px 14px; }
-
-  /* Perf header — single row */
-  .perf-header-title { flex-direction: row; align-items: center; }
-}
