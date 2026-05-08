@@ -17,7 +17,7 @@ const TELEGRAM_BOT_TOKEN = '8643381958:AAGUT_9Q_lSj_29Y2lfPRJNzG9TzlmhqReM';
 const TELEGRAM_TARGETS   = ['6732836566', '765993766']; // DM + @Eem09
 const PAPER_START        = 150;
 const PAPER_RISK_PCT     = 1.0;
-const MAX_DRAWDOWN_PCT   = 5.0;
+const MAX_DRAWDOWN_PCT   = 35.0;  // gold swings 50+ pts/trade; 5% was too tight on $150
 const COOLDOWN_MS        = 90 * 60 * 1000;   // 90-minute cooldown between signals
 
 // ─── Pointer blob — always holds the current active blob URL ─────────────────
