@@ -11,20 +11,27 @@
 
 const BOT_TOKEN    = "8643381958:AAGUT_9Q_lSj_29Y2lfPRJNzG9TzlmhqReM";
 const TG_TARGETS   = ["6732836566", "765993766"]; // DM + @Eem09
-const STATE_URL    = 'https://jsonblob.com/api/jsonBlob/019d9ab2-26ea-70d2-bc44-9a788ea20156';
+const STATE_URL    = 'https://jsonblob.com/api/jsonBlob/019e056f-5f10-717e-9162-a86e051fadf8'; // active pointer blob
 const PAPER_START  = 150;
 
 // ─── Send to ALL targets ──────────────────────────────────────────────────────
 async function sendTG(text) {
-  await Promise.allSettled(
-    TG_TARGETS.map(chat_id =>
-      fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+  const results = await Promise.allSettled(
+    TG_TARGETS.map(async (chat_id) => {
+      const r = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id, text, parse_mode: 'HTML' })
-      })
-    )
+      });
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}));
+        console.error(`[WEEKLY] Telegram FAILED for ${chat_id}: ${r.status} — ${body?.description || 'unknown'}`);
+      }
+      return r;
+    })
   );
+  const failed = results.filter(r => r.status === 'rejected').length;
+  if (failed > 0) console.error(`[WEEKLY] ${failed}/${results.length} sends failed`);
 }
 
 export default async function handler(req, res) {
