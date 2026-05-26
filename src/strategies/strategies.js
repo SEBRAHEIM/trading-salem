@@ -9,11 +9,11 @@ import { Indicators as I } from './indicators.js';
 const last  = arr => arr[arr.length - 1];
 const prev  = (arr, n = 1) => arr[arr.length - 1 - n];
 
-// ─── Strategy Context (injected by cron-tick) ─────────────────────────────────
+// ─── Strategy Context ─────────────────────────────────────────────────────────
 export const strategyContext = {
   headlines: [],
-  whaleSentiment: null,
 };
+
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function emaLocal(src, period) {

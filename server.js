@@ -13,7 +13,7 @@ import { execSync, exec } from 'child_process';
 import TradingView from '@mathieuc/tradingview';
 import { runAllStrategies, aggregateSignals } from './src/strategies/strategies.js';
 import { computeRiskParams } from './src/data/backtest.js';
-import { whaleLevels } from './src/data/whales.js';
+
 
 // ─── Correlation Tracker ──────────────────────────────────────────────────────
 const correlationStats = {
@@ -22,27 +22,6 @@ const correlationStats = {
   syntheticSaves: 0
 };
 
-async function updateWhaleLevelsServer() {
-  const UW_API_KEY = "d9dc6e61-6157-4070-af00-2f868fd5dc27";
-  try {
-    const res = await fetch(`https://api.unusualwhales.com/api/option-trades/flow-alerts?ticker_symbol=GLD&limit=100`, {
-       headers: { "Authorization": `Bearer ${UW_API_KEY}`, "UW-CLIENT-API-ID": "100001", "Accept": "application/json" }
-    });
-    if (!res.ok) return;
-    const data = await res.json();
-    let calls = [], puts = [];
-    data.data.forEach(t => {
-       const strike = parseFloat(t.strike);
-       const prem = parseFloat(t.total_premium || 0);
-       if (t.option_type === 'C' || t.type === 'call') calls.push({strike, premium: prem});
-       else if (t.option_type === 'P' || t.type === 'put') puts.push({strike, premium: prem});
-    });
-    calls.sort((a,b)=>b.premium-a.premium); puts.sort((a,b)=>b.premium-a.premium);
-    whaleLevels.resistance = calls.slice(0,5).map(c=>c.strike);
-    whaleLevels.support = puts.slice(0,5).map(p=>p.strike);
-    whaleLevels.active = true;
-  } catch(e) {}
-}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app  = express();
@@ -170,8 +149,6 @@ setInterval(async () => {
     if (!candles || candles.length < 50) return;
     const lastClose = candles[candles.length - 1].close;
 
-    // Refresh backend Dark Pool data
-    await updateWhaleLevelsServer();
 
     // Monitor open trade
     if (paperState.openTrade) {
@@ -257,23 +234,6 @@ setInterval(async () => {
 
       const allResults = runAllStrategies(candles);
 
-      // --- CORRELATION TRACKER (silent — console only) ---
-      const synthetic = allResults.find(r => r.id === 'whale_tracker');
-      const apiLive = allResults.find(r => r.id === 'unusual_whales_csv');
-      if (synthetic && apiLive) {
-        correlationStats.totalChecks++;
-        if (synthetic.signal !== 'neutral' || apiLive.signal !== 'neutral') {
-          if (synthetic.signal === apiLive.signal) {
-            correlationStats.overlapCount++;
-            console.log(`[CORRELATION] 🟢 ALIGNMENT: Both fired ${synthetic.signal.toUpperCase()}`);
-          } else if (synthetic.signal !== 'neutral' && apiLive.signal === 'neutral') {
-            correlationStats.syntheticSaves++;
-            console.log(`[CORRELATION] 🟣 SYNTHETIC EARLY: VSA fired ${synthetic.signal.toUpperCase()} before API`);
-          } else {
-            console.log(`[CORRELATION] 🟡 API: ${apiLive.signal.toUpperCase()}, Synthetic neutral`);
-          }
-        }
-      }
 
       const agg = aggregateSignals(allResults, paperState.lastSignal);
       if (agg.thresholdMet && agg.finalSignal !== 'NO TRADE') {

@@ -165,7 +165,7 @@ Win Rate: ${mWinRate}% | Pips: ${mPips >= 0 ? '+' : ''}${mPips.toFixed(1)}
 
 
 
-<i>🐳 Whale engine monitoring 24/7. Next report: Friday.</i>`.trim();
+<i>📊 SMC Precision engine running 24/7. Next report: Friday.</i>`.trim();
 
     // ── Send (split if >4000 chars) ──────────────────────────────────────
     if (msg.length <= 4000) {

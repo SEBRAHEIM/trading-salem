@@ -9,7 +9,7 @@ import { initChart, updateChart, updateChartData, addSignalMarker } from './comp
 import { fetchCandles, fetchLivePrice, addSyntheticTick, PAIRS, INTERVALS } from './data/marketData.js';
 import { smcSignal } from './strategies/smc.js';
 import { computeRiskParams } from './data/backtest.js';
-import { parseWhalesCSV, fetchLiveWhalesAPI, whaleLevels } from './data/whales.js';
+
 import { initPerfDashboard, triggerPerfRefresh } from './perf-dashboard.js';
 
 // ─── State ────────────────────────────────────────────────────────────────────
@@ -330,16 +330,6 @@ async function loadAndAnalyze() {
   clearLiveIntervals();
 
   try {
-    // Fetch breaking news asynchronously into the singleton
-    fetch(`/api/news?pair=${encodeURIComponent(state.pair)}`)
-      .then(res => res.json())
-      .then(data => { if (data.headlines) strategyContext.headlines = data.headlines; })
-      .catch(e => console.warn('News engine unavailable', e));
-      
-    // Fetch live Unusual Whales Options flow asynchronously if not manually loaded
-    if (!whaleLevels.active) {
-      fetchLiveWhalesAPI(state.pair).catch(e => console.warn('Whales API unavailable', e));
-    }
 
     const candles = await fetchCandles(state.pair, state.interval, 300);
     state.candles = candles;
