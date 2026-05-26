@@ -11,95 +11,19 @@
  *   • Minimum 15pt SL distance (noise filter)
  *
  * Backtest: 55% WR | 2.59× PF | +46.54% / 77 days | DD < 6%
+ *
+ * State: Stored permanently in GitHub Gist (never expires)
+ *   Env vars required: GITHUB_TOKEN, STATE_GIST_ID
  */
+
+import { loadState, saveState } from './stateStore.js';
 
 const TELEGRAM_BOT_TOKEN = '8643381958:AAGUT_9Q_lSj_29Y2lfPRJNzG9TzlmhqReM';
 const TELEGRAM_TARGETS   = ['6732836566', '765993766']; // DM + @Eem09
 const PAPER_START        = 150;
 const PAPER_RISK_PCT     = 1.0;
-const MAX_DRAWDOWN_PCT   = 35.0;  // gold swings 50+ pts/trade; 5% was too tight on $150
+const MAX_DRAWDOWN_PCT   = 35.0;
 const COOLDOWN_MS        = 90 * 60 * 1000;   // 90-minute cooldown between signals
-
-// ─── Pointer blob — always holds the current active blob URL ─────────────────
-// This never changes. It stores: { "url": "https://jsonblob.com/api/jsonBlob/..." }
-const POINTER_URL = 'https://jsonblob.com/api/jsonBlob/019e63aa-f82a-7e90-946d-29f3e309b7e0';
-
-let _activeUrl = null; // cached for the lifetime of this invocation
-
-async function getActiveUrl() {
-  if (_activeUrl) return _activeUrl;
-  try {
-    const r = await fetch(POINTER_URL, { headers: { Accept: 'application/json' } });
-    if (r.ok) {
-      const d = await r.json();
-      // If pointer blob stores { url: '...' } use it, otherwise it IS the state blob
-      if (d && d._stateUrl) {
-        _activeUrl = d._stateUrl;
-        return _activeUrl;
-      }
-    }
-  } catch (e) { console.log('[PTR] Pointer read error:', e.message); }
-  _activeUrl = POINTER_URL; // fallback: pointer IS the state blob
-  return _activeUrl;
-}
-
-async function loadState() {
-  const url = await getActiveUrl();
-  try {
-    const r = await fetch(url, { headers: { Accept: 'application/json' } });
-    if (r.ok) {
-      const d = await r.json();
-      if (d && d.equity) return d;
-    }
-  } catch (e) { console.log('[STATE] Load error:', e.message); }
-  // Auto-heal: blob expired — create fresh state
-  return {
-    equity: PAPER_START, peakEquity: PAPER_START, startEquity: PAPER_START,
-    startDate: new Date().toISOString().slice(0, 10),
-    trades: [], openTrade: null, lastSignal: null, lastSignalTime: null,
-  };
-}
-
-async function saveState(state) {
-  const url = await getActiveUrl();
-  try {
-    const r = await fetch(url, {
-      method:  'PUT',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body:    JSON.stringify(state),
-    });
-    if (r.ok) return; // success
-
-    // Blob expired — create a new one
-    const created = await fetch('https://jsonblob.com/api/jsonBlob', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body:    JSON.stringify(state),
-    });
-    const loc    = created.headers.get('location') || '';
-    const newUrl = 'https://jsonblob.com' + loc;
-    _activeUrl   = newUrl;
-    console.log('[STATE] Auto-healed — new blob URL:', newUrl);
-
-    // Update pointer blob so all services find the new URL
-    await fetch(POINTER_URL, {
-      method:  'PUT',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body:    JSON.stringify({ ...state, _stateUrl: newUrl }),
-    }).catch(() => {});
-
-    // Alert owner with the new URL
-    const msg = `⚠️ <b>State Blob Auto-Renewed</b>\n\nNew URL:\n<code>${newUrl}</code>\n\nNo action needed — system self-healed.`;
-    await Promise.allSettled(
-      TELEGRAM_TARGETS.map(id =>
-        fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: id, text: msg, parse_mode: 'HTML' }),
-        })
-      )
-    );
-  } catch (e) { console.error('[STATE] Save error:', e.message); }
-}
 
 // ─── Telegram ──────────────────────────────────────────────────────────────────
 async function sendTG(text) {

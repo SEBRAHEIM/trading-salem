@@ -8,16 +8,7 @@
 
 const TOKEN      = '8643381958:AAGUT_9Q_lSj_29Y2lfPRJNzG9TzlmhqReM';
 const OWNER_DM   = '6732836566';   // owner only
-const POINTER_URL = 'https://jsonblob.com/api/jsonBlob/019e63aa-f82a-7e90-946d-29f3e309b7e0';
 const BASE_URL   = 'https://trading-salem-zbf1.vercel.app';
-
-async function getStateUrl() {
-  try {
-    const r = await fetch(POINTER_URL, { headers: { Accept: 'application/json' } });
-    if (r.ok) { const d = await r.json(); if (d && d._stateUrl) return d._stateUrl; }
-  } catch (e) {}
-  return POINTER_URL;
-}
 
 async function sendDM(text) {
   await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
@@ -58,34 +49,34 @@ export default async function handler(req, res) {
     return `${d.candles.length} bars`;
   });
 
-  // ── 3. State (JSONBlob pointer system) ───────────────────────────────────
-  let stateOk = false;
-  await check('State (JSONBlob)', async () => {
-    const stateUrl = await getStateUrl();
-    const r = await fetch(stateUrl, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
-    if (!r.ok) {
-      fixes.push('State blob unreachable — triggering auto-heal now');
-      // Trigger heal-state endpoint automatically
-      fetch(`${BASE_URL}/api/heal-state?secret=salem2026`, { signal: AbortSignal.timeout(15000) })
-        .then(hr => hr.json())
-        .then(hd => {
-          if (hd.ok) sendDM(`🔧 <b>Auto-Heal Triggered</b>\n\nNew state blob created.\nEquity: $${hd.equity} | Trades: ${hd.trades}\n\n${hd.needsCodeUpdate ? '⚠️ New pointer URL required — check Telegram for details.' : '✅ Pointer updated automatically.'}`);
-        })
-        .catch(e => sendDM(`❌ <b>Auto-Heal Failed</b>\n\n${e.message}\n\nManually call:\n<code>${BASE_URL}/api/heal-state?secret=salem2026</code>`));
-      throw new Error('blob unreachable');
-    }
-    const state = await r.json();
-    if (!state?.equity) throw new Error('malformed state');
-    stateOk = true;
+  // ── 3. State (GitHub Gist) ────────────────────────────────────────
+  await check('State (GitHub Gist)', async () => {
+    const token  = process.env.GITHUB_TOKEN;
+    const gistId = process.env.STATE_GIST_ID;
+    if (!token)  throw new Error('GITHUB_TOKEN env var missing');
+    if (!gistId) throw new Error('STATE_GIST_ID env var missing — add it to Vercel');
+    const r = await fetch(`https://api.github.com/gists/${gistId}`, {
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'trading-salem-bot',
+      },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!r.ok) throw new Error(`Gist fetch failed: HTTP ${r.status}`);
+    const data  = await r.json();
+    const file  = data.files?.['trading-salem-state.json'];
+    if (!file?.content) throw new Error('State file missing from gist');
+    const state = JSON.parse(file.content);
+    if (!state?.equity) throw new Error('Malformed state in gist');
     return `Equity $${state.equity} | Trades: ${state.trades?.length || 0} | Open: ${state.openTrade?.direction || 'none'}`;
   });
 
   // ── 4. Performance API ────────────────────────────────────────────────────
   await check('Performance API', async () => {
-    const d = await fetch(`${BASE_URL}/api/performance`, { signal: AbortSignal.timeout(8000) }).then(r => r.json());
+    const d = await fetch(`${BASE_URL}/api/performance`, { signal: AbortSignal.timeout(10000) }).then(r => r.json());
     if (d.error) throw new Error(d.error);
-    // blobUnreachable is a soft warning — state is being healed
-    if (d.blobUnreachable) return `State unavailable (healing in progress) | WR 0% | Eq $${d.equity}`;
+    if (d.storeUnavailable) throw new Error('GitHub store unavailable — check GITHUB_TOKEN env var');
     return `${d.totalTrades} trades | WR ${d.winRate}% | Eq $${d.equity}`;
   });
 

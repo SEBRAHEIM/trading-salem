@@ -1,25 +1,10 @@
 /**
  * /api/performance.js
  * Returns real performance statistics from the bot's trade history.
- * Uses the same pointer blob as cron-tick.js — always reads live data.
+ * Reads from GitHub Gist via stateStore — permanent, never expires.
  */
 
-const POINTER_URL = 'https://jsonblob.com/api/jsonBlob/019e63aa-f82a-7e90-946d-29f3e309b7e0';
-
-async function getStateUrl() {
-  try {
-    const r = await fetch(POINTER_URL, {
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(6000),
-    });
-    if (r.ok) {
-      const d = await r.json();
-      if (d && d._stateUrl) return { url: d._stateUrl, alive: true };
-      if (d && d.equity) return { url: POINTER_URL, alive: true }; // pointer IS the state
-    }
-  } catch (e) {}
-  return { url: POINTER_URL, alive: false }; // pointer unreachable
-}
+import { readStateForAPI } from './stateStore.js';
 
 const EMPTY_STATS = (equity = 150, startEquity = 150, openTrade = null, extra = {}) => ({
   totalTrades: 0, winRate: 0, profitFactor: 0, totalPnl: 0,
@@ -34,27 +19,14 @@ const EMPTY_STATS = (equity = 150, startEquity = 150, openTrade = null, extra = 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   try {
-    const { url: STATE_URL, alive: pointerAlive } = await getStateUrl();
+    const state = await readStateForAPI();
 
-    // If pointer itself is unreachable, return empty stats gracefully
-    if (!pointerAlive) {
+    if (!state) {
       return res.status(200).json(EMPTY_STATS(150, 150, null, {
-        blobUnreachable: true,
+        storeUnavailable: true,
         lastUpdated: new Date().toISOString(),
       }));
     }
-
-    const r = await fetch(STATE_URL, {
-      headers: { 'Accept': 'application/json' },
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!r.ok) {
-      return res.status(200).json(EMPTY_STATS(150, 150, null, {
-        blobUnreachable: true,
-        lastUpdated: new Date().toISOString(),
-      }));
-    }
-    const state = await r.json();
 
     const trades = (state.trades || []).filter(t => t.result);
     const openTrade = state.openTrade || null;
