@@ -17,7 +17,8 @@
     "api/cron-tick.js":          { "maxDuration": 30 },
     "api/cron-daily-health.js":  { "maxDuration": 30 },
     "api/candles.js":            { "maxDuration": 20 },
-    "api/performance.js":        { "maxDuration": 15 }
+    "api/performance.js":        { "maxDuration": 15 },
+    "api/heal-state.js":         { "maxDuration": 20 }
   },
   "rewrites": [
     {

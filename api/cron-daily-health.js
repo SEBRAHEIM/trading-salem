@@ -64,8 +64,14 @@ export default async function handler(req, res) {
     const stateUrl = await getStateUrl();
     const r = await fetch(stateUrl, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
     if (!r.ok) {
-      fixes.push('State blob unreachable — cron-tick will auto-heal on next run');
-      await sendDM(`⚠️ <b>State Blob Unreachable</b>\n\nCron-tick will auto-create a new blob on next signal.\nNo manual action needed — system is self-healing.`);
+      fixes.push('State blob unreachable — triggering auto-heal now');
+      // Trigger heal-state endpoint automatically
+      fetch(`${BASE_URL}/api/heal-state?secret=salem2026`, { signal: AbortSignal.timeout(15000) })
+        .then(hr => hr.json())
+        .then(hd => {
+          if (hd.ok) sendDM(`🔧 <b>Auto-Heal Triggered</b>\n\nNew state blob created.\nEquity: $${hd.equity} | Trades: ${hd.trades}\n\n${hd.needsCodeUpdate ? '⚠️ New pointer URL required — check Telegram for details.' : '✅ Pointer updated automatically.'}`);
+        })
+        .catch(e => sendDM(`❌ <b>Auto-Heal Failed</b>\n\n${e.message}\n\nManually call:\n<code>${BASE_URL}/api/heal-state?secret=salem2026</code>`));
       throw new Error('blob unreachable');
     }
     const state = await r.json();
@@ -78,6 +84,8 @@ export default async function handler(req, res) {
   await check('Performance API', async () => {
     const d = await fetch(`${BASE_URL}/api/performance`, { signal: AbortSignal.timeout(8000) }).then(r => r.json());
     if (d.error) throw new Error(d.error);
+    // blobUnreachable is a soft warning — state is being healed
+    if (d.blobUnreachable) return `State unavailable (healing in progress) | WR 0% | Eq $${d.equity}`;
     return `${d.totalTrades} trades | WR ${d.winRate}% | Eq $${d.equity}`;
   });
 

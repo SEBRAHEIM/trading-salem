@@ -8,21 +8,52 @@ const POINTER_URL = 'https://jsonblob.com/api/jsonBlob/019e056f-5f10-717e-9162-a
 
 async function getStateUrl() {
   try {
-    const r = await fetch(POINTER_URL, { headers: { Accept: 'application/json' } });
+    const r = await fetch(POINTER_URL, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(6000),
+    });
     if (r.ok) {
       const d = await r.json();
-      if (d && d._stateUrl) return d._stateUrl;
+      if (d && d._stateUrl) return { url: d._stateUrl, alive: true };
+      if (d && d.equity) return { url: POINTER_URL, alive: true }; // pointer IS the state
     }
   } catch (e) {}
-  return POINTER_URL; // pointer IS the state blob
+  return { url: POINTER_URL, alive: false }; // pointer unreachable
 }
+
+const EMPTY_STATS = (equity = 150, startEquity = 150, openTrade = null, extra = {}) => ({
+  totalTrades: 0, winRate: 0, profitFactor: 0, totalPnl: 0,
+  avgWin: 0, avgLoss: 0, maxDrawdown: 0, sharpeRatio: 0,
+  equity, startEquity, openTrade,
+  equityCurve: [{ time: new Date().toISOString(), equity: startEquity }],
+  recentTrades: [], bestTrade: null, worstTrade: null,
+  breakdown: { tp2: 0, tp1: 0, sl: 0 },
+  ...extra,
+});
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   try {
-    const STATE_URL = await getStateUrl();
-    const r = await fetch(STATE_URL, { headers: { 'Accept': 'application/json' } });
-    if (!r.ok) return res.status(503).json({ error: 'State unavailable' });
+    const { url: STATE_URL, alive: pointerAlive } = await getStateUrl();
+
+    // If pointer itself is unreachable, return empty stats gracefully
+    if (!pointerAlive) {
+      return res.status(200).json(EMPTY_STATS(150, 150, null, {
+        blobUnreachable: true,
+        lastUpdated: new Date().toISOString(),
+      }));
+    }
+
+    const r = await fetch(STATE_URL, {
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!r.ok) {
+      return res.status(200).json(EMPTY_STATS(150, 150, null, {
+        blobUnreachable: true,
+        lastUpdated: new Date().toISOString(),
+      }));
+    }
     const state = await r.json();
 
     const trades = (state.trades || []).filter(t => t.result);
@@ -31,14 +62,9 @@ export default async function handler(req, res) {
     const startEquity = state.startEquity || 150;
 
     if (!trades.length) {
-      return res.status(200).json({
-        totalTrades: 0, winRate: 0, profitFactor: 0, totalPnl: 0,
-        avgWin: 0, avgLoss: 0, maxDrawdown: 0, sharpeRatio: 0,
-        equity, startEquity, openTrade,
-        equityCurve: [{ time: new Date().toISOString(), equity: startEquity }],
-        recentTrades: [], bestTrade: null, worstTrade: null,
-        breakdown: { tp2: 0, tp1: 0, sl: 0 }
-      });
+      return res.status(200).json(EMPTY_STATS(equity, startEquity, openTrade, {
+        lastUpdated: new Date().toISOString(),
+      }));
     }
 
     const wins   = trades.filter(t => t.result === 'TP1' || t.result === 'TP2' || t.result === 'TP1_Secured');
