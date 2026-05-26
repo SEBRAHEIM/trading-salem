@@ -10,7 +10,7 @@
 
 const TOKEN       = '8643381958:AAGUT_9Q_lSj_29Y2lfPRJNzG9TzlmhqReM';
 const OWNER_DM    = '6732836566';
-const POINTER_URL = 'https://jsonblob.com/api/jsonBlob/019e056f-5f10-717e-9162-a86e051fadf8';
+const POINTER_URL = 'https://jsonblob.com/api/jsonBlob/019e63aa-f82a-7e90-946d-29f3e309b7e0';
 const PAPER_START = 150;
 const SECRET      = 'salem2026';
 

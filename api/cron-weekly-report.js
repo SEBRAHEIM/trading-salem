@@ -11,7 +11,7 @@
 
 const BOT_TOKEN    = "8643381958:AAGUT_9Q_lSj_29Y2lfPRJNzG9TzlmhqReM";
 const TG_TARGETS   = ["6732836566", "765993766"]; // DM + @Eem09
-const STATE_URL    = 'https://jsonblob.com/api/jsonBlob/019e056f-5f10-717e-9162-a86e051fadf8'; // active pointer blob
+const STATE_URL    = 'https://jsonblob.com/api/jsonBlob/019e63aa-f82a-7e90-946d-29f3e309b7e0'; // active pointer blob
 const PAPER_START  = 150;
 
 // ─── Send to ALL targets ──────────────────────────────────────────────────────
